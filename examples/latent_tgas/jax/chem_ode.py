@@ -9,7 +9,7 @@ import jax
 import jax.numpy as jnp
 
 
-# @eqx.filter_jit
+@eqx.filter_jit
 def fex(t, y, cr_rate=1e-17, gnot=1e0):
     # cr_rate = 1e-17
     # gnot = 1e0

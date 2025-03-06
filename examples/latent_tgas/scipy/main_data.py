@@ -1,3 +1,4 @@
+from datetime import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 from chem_commons import idx_C, idx_H2, idx_O, names, nspecies
@@ -39,15 +40,21 @@ y0[idx_C] = simulation_parameters["ntot"] * simulation_parameters["C_fraction"]
 # Integrate the system for 1 Myr
 tend = 1e6 * spy
 # Solve the system using the BDF method
-sol = solve_ivp(
-    fex,
-    (0, tend),
-    y0,
-    "BDF",
-    atol=1e-40,
-    rtol=1e-12,
-    args=(simulation_parameters["cr_rate"], simulation_parameters["gnot"]),
-)
+
+samples = 100
+start = datetime.now()
+for i in range(samples):
+    sol = solve_ivp(
+        fex,
+        (0, tend),
+        y0,
+        "BDF",
+        atol=1e-18,
+        rtol=1e-12,
+        args=(simulation_parameters["cr_rate"], simulation_parameters["gnot"]),
+    )
+print(f"Average time taken for {samples} samples: ", (datetime.now() - start) / samples)
+
 
 # Print the error message if the integration failed
 if not sol.success:

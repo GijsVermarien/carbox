@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 import sys
 
@@ -79,12 +80,32 @@ solution = diffeqsolve(
     y0=y0,
     stepsize_controller=PIDController(
         atol=1e-18,
-        rtol=1e-6,
+        rtol=1e-12,
     ),
     saveat=SaveAt(ts=spy * jnp.logspace(-14, 6, 1000)),
     args=[simulation_parameters["cr_rate"], simulation_parameters["gnot"]],
     max_steps=16**3,
 )
+
+samples = 100
+start = datetime.now()
+for i in range(samples):
+    solution = diffeqsolve(
+        problem,
+        solver,
+        t0=0.0,
+        dt0=0.001 * tend,
+        t1=tend,
+        y0=y0,
+        stepsize_controller=PIDController(
+            atol=1e-18,
+            rtol=1e-12,
+        ),
+        saveat=SaveAt(ts=spy * jnp.logspace(-14, 6, 1000)),
+        args=[simulation_parameters["cr_rate"], simulation_parameters["gnot"]],
+        max_steps=16**3,
+    )
+print(f"Average time taken for {samples} samples: ", (datetime.now() - start) / samples)
 
 # print(solution)
 # solution = diffeqsolve(term, solver, t0=0, t1=1, dt0=0.1, y0=y0)
