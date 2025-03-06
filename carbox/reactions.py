@@ -50,12 +50,12 @@ class KAReaction(Reaction):
             beta: float
             gamma: float
 
-            def __call__(self, temperature):
+            def __call__(self, temperature, cr_rate, uv_field):
                 # α(T/300K​)βexp(−γ/T)
                 return (
-                    alpha
-                    * jnp.power(0.0033333333333333335 * temperature, beta)
-                    * jnp.exp(-gamma / temperature)
+                    self.alpha
+                    * jnp.power(0.0033333333333333335 * temperature, self.beta)
+                    * jnp.exp(-self.gamma / temperature)
                 )
 
         return KAReactionRateTerm
@@ -65,18 +65,40 @@ class CRReaction(Reaction):
     def __init__(self, name, reactants, products, rate):
         super().__init__(name, reactants, products, rate)
 
-    def _reaction_rate_factory(*, alpha, beta, gamma) -> JReactionRateTerm:
+    def _reaction_rate_factory(*, alpha) -> JReactionRateTerm:
         class CRReactionRateTerm(JReactionRateTerm):
             alpha: float
-            beta: float
-            gamma: float
 
-            def __call__(self, temperature):
-                # α(T/300K​)βexp(−γ/T)
-                return (
-                    alpha
-                    * jnp.power(0.0033333333333333335 * temperature, beta)
-                    * jnp.exp(-gamma / temperature)
-                )
+            def __call__(self, temperature, cr_rate, uv_field):
+                return self.alpha * cr_rate
 
         return CRReactionRateTerm
+
+
+class UVReaction(Reaction):
+    def __init__(self, name, reactants, products, rate):
+        super().__init__(name, reactants, products, rate)
+
+    def _reaction_rate_factory(*, alpha) -> JReactionRateTerm:
+        class UVReactionRateTerm(JReactionRateTerm):
+            alpha: float
+
+            def __call__(self, temperature, cr_rate, uv_field):
+                return self.alpha * uv_field
+
+        return UVReactionRateTerm
+
+
+class H2FormReaction(Reaction):
+    def __init__(self, name, reactants, products, rate):
+        super().__init__(name, reactants, products, rate)
+
+    def _reaction_rate_factory(*, alpha, gas2dust) -> JReactionRateTerm:
+        class UVReactionRateTerm(JReactionRateTerm):
+            alpha: float
+            gas2dust: float
+
+            def __call__(self, temperature, cr_rate, uv_field):
+                return 0.01 * self.alpha * self.gas2dust
+
+        return UVReactionRateTerm
