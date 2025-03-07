@@ -1,4 +1,5 @@
 import equinox as eqx
+import numpy as np
 import jax.numpy as jnp
 from dataclasses import dataclass
 
@@ -20,17 +21,23 @@ class Reaction:
     reaction_type: str
     reactants: list[str]
     products: list[str]
+    molecularity: int
 
-    # def __init__(self, reactants, products, reaction_type):
-    #     self.reactants = reactants
-    #     self.products = products
-    #     self.reaction_type = reaction_type
+    def __init__(self, reaction_type, reactants, products):
+        self.reactants = [
+            r for r in reactants if (~np.isnan(r) if isinstance(r, float) else True)
+        ]
+        self.products = [
+            p for p in products if (~np.isnan(p) if isinstance(p, float) else True)
+        ]
+        self.reaction_type = reaction_type
+        self.molecularity = len(self.reactants)
 
     def __str__(self):
         return f"{self.reactants} -> {self.products}"
 
     def __repr__(self):
-        return f"Reaction({self.reaction_type}, {self.reactants}, {self.products})"
+        return f"Reaction({self.reaction_type}, {self.reactants}, {self.products})\n"
 
     def _reaction_rate_factory() -> JReactionRateTerm:
         # Abstract function to implement in subclasses

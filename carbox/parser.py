@@ -1,8 +1,11 @@
 import pandas as pd
 import numpy as np
 
+from network import Network
 from constants import elemental_dict
 from reactions import KAReaction, CRReaction, FUVReaction, H2FormReaction
+
+import diffrax as dx
 
 GAS2DUST = 0.01
 
@@ -73,10 +76,10 @@ if __name__ == "__main__":
     reactions_file = pd.read_csv("data/simple_latent_tgas.csv")
     # Get the unique species from the reaction file
     species = list(
-        set(reactions_file.r1)
-        | set(reactions_file.r2)
-        | set(reactions_file.p1)
-        | set(reactions_file.p2)
+        set(reactions_file["r1"])
+        | set(reactions_file["r2"])
+        | set(reactions_file["p1"])
+        | set(reactions_file["p2"])
     )
     species.remove(np.nan)
 
@@ -84,10 +87,13 @@ if __name__ == "__main__":
     species = sorted(species, key=lambda x: parse_atoms(x, mode="atomic_weight")[1])
 
     # Parse the reactions:
-    print(reaction_by_shorthand_name)
     reactions = [
         reaction_by_shorthand_name[reac[-1]](*reac)
         for idx, reac in reactions_file.iterrows()
     ]
-    Jreaction = [reaction() for reaction in reactions]
-    print(Jreaction)
+    # Jreaction = [reaction() for reaction in reactions]
+
+    reaction_network = Network(species, reactions)
+    # print(reaction_network.incidence)
+    system = reaction_network.get_ode()
+    system(np.ones(16) * 1e-5, 10.0, 1e-17, 1e0)

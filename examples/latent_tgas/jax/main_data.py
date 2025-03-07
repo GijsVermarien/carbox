@@ -10,6 +10,8 @@ from chem_commons import idx_C, idx_H2, idx_O, names, nspecies
 from chem_ode import fex
 from tqdm import tqdm
 
+import equinox as eqx
+
 import jax
 import jax.numpy as jnp
 from jax import random
@@ -70,27 +72,11 @@ solver = Kvaerno5()
 
 # Define the differential equation problem'
 problem = ODETerm(lambda t, y, args: fex(t, y, args[0], args[1]))
-# Solve the problem
-solution = diffeqsolve(
-    problem,
-    solver,
-    t0=0.0,
-    dt0=0.001 * tend,
-    t1=tend,
-    y0=y0,
-    stepsize_controller=PIDController(
-        atol=1e-18,
-        rtol=1e-12,
-    ),
-    saveat=SaveAt(ts=spy * jnp.logspace(-14, 6, 1000)),
-    args=[simulation_parameters["cr_rate"], simulation_parameters["gnot"]],
-    max_steps=16**3,
-)
 
-samples = 100
-start = datetime.now()
-for i in range(samples):
-    solution = diffeqsolve(
+
+# Solve the problem
+def solver_wrap(y0):
+    return diffeqsolve(
         problem,
         solver,
         t0=0.0,
@@ -105,7 +91,18 @@ for i in range(samples):
         args=[simulation_parameters["cr_rate"], simulation_parameters["gnot"]],
         max_steps=16**3,
     )
-print(f"Average time taken for {samples} samples: ", (datetime.now() - start) / samples)
+
+
+solver_wrap(y0)
+
+samples = 100
+start = datetime.now()
+for i in range(samples):
+    solution, grad = eqx.filter_value_and_grad(solver_wrap)(y0)
+print(
+    f"Average time taken for {samples} samples: ",
+    (datetime.now() - start) / samples,
+)
 
 # print(solution)
 # solution = diffeqsolve(term, solver, t0=0, t1=1, dt0=0.1, y0=y0)

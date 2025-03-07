@@ -1,13 +1,14 @@
 import equinox as eqx
 import jax.numpy as jnp
-import dataclass as dataclass
+from dataclasses import dataclass
 
 
 class JSpecies(eqx.Module):
     pass
 
 
-class Species(dataclass):
+@dataclass
+class Species:
     name: str
     mass: float
 
