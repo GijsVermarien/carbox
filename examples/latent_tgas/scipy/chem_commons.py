@@ -24,5 +24,22 @@ idx_OH = 14
 idx_OHj = 15
 idx_tgas = 16
 
-names = ["C", "C+", "CO", "CO+", "E", "H", "H+", "H2", "H2O", "H2O+", "H3O+", "HCO+", "O2", "O+", "OH", "OH+", "Tgas"]
-
+names = [
+    "C",
+    "C+",
+    "CO",
+    "CO+",
+    "E",
+    "H",
+    "H+",
+    "H2",
+    "H2O",
+    "H2O+",
+    "H3O+",
+    "HCO+",
+    "O",
+    "O+",
+    "OH",
+    "OH+",
+    "Tgas",
+]

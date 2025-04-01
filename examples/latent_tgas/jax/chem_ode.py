@@ -17,20 +17,19 @@ def fex(t, y, cr_rate=1e-17, gnot=1e0):
     tgas = y[idx_tgas]
 
     k = get_rates(tgas, cr_rate, gnot)
-
+    # Debug the rates:
+    # jax.debug.print("k: {k}", k=k)
     dy = [None] * (nspecies + 1)
     flux = [None] * nreactions
 
     gamma_ad = 1.4
-    # jax.debug.print("tgas: {tgas}, species{y}", tgas=tgas, y=y)
     ntot = jnp.sum(y[:nspecies])
     cool = get_cooling(y[:nspecies], tgas)
     heat = get_heating(y[:nspecies], tgas, cr_rate, gnot)
 
-    dy[idx_tgas] = (gamma_ad - 1e0) * (heat - cool) / kboltzmann / ntot
-
-    # enable this to figure out the heating and cooling comparison
-    # jax.debug.print("jax:,{t:2.2e},{x},{y}", t=t, x=heat, y=cool)
+    # dy[idx_tgas] = (gamma_ad - 1e0) * (heat - cool) / kboltzmann / ntot
+    # Disable heating and cooling:
+    dy[idx_tgas] = 0.0
 
     flux[0] = k[0] * y[idx_Oj] * y[idx_H2]
     flux[1] = k[1] * y[idx_OHj] * y[idx_H2]
@@ -114,6 +113,6 @@ def fex(t, y, cr_rate=1e-17, gnot=1e0):
     dy[idx_Oj] = -flux[0] - flux[7] + flux[8]
     dy[idx_OH] = +flux[4] - flux[12] - flux[13] + flux[23]
     dy[idx_OHj] = +flux[0] - flux[1] - flux[6]
-    # jax.debug.print("🤯 {y} 🤯", y=y)
+    # jax.debug.print("{y}", y=jnp.array(dy))
     # jax.debug.print("Debug {a}", a=jnp.array(dy).dtype)
     return jnp.array(dy, dtype=jnp.float64)

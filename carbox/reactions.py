@@ -61,7 +61,7 @@ class KAReaction(Reaction):
             gamma: float
 
             def __call__(self, temperature, cr_rate, uv_field):
-                # α(T/300K​)βexp(−γ/T)
+                # α(T/300K​)^βexp(−γ/T)
                 return (
                     self.alpha
                     * jnp.power(0.0033333333333333335 * temperature, self.beta)
@@ -69,6 +69,28 @@ class KAReaction(Reaction):
                 )
 
         return KAReactionRateTerm(self.alpha, self.beta, self.gamma)
+
+
+class KAFixedReaction(Reaction):
+    def __init__(
+        self, reaction_type, reactants, products, alpha, beta, gamma, temperature
+    ):
+        super().__init__(reaction_type, reactants, products)
+        self.reaction_coeff = (
+            alpha
+            * jnp.power(0.0033333333333333335 * temperature, beta)
+            * jnp.exp(-gamma / temperature)
+        )
+
+    def _reaction_rate_factory(self) -> JReactionRateTerm:
+        class KAFixedReactionRateTerm(JReactionRateTerm):
+            reaction_coeff: float
+
+            def __call__(self, temperature, cr_rate, uv_field):
+                # α(T/300K​)βexp(−γ/T)
+                return self.reaction_coeff
+
+        return KAFixedReactionRateTerm(self.reaction_coeff)
 
 
 class CRReaction(Reaction):
@@ -108,11 +130,11 @@ class H2FormReaction(Reaction):
         self.gas2dust = gas2dust
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
-        class UVReactionRateTerm(JReactionRateTerm):
+        class H2ReactionRateTerm(JReactionRateTerm):
             alpha: float
             gas2dust: float
 
             def __call__(self, temperature, cr_rate, uv_field):
-                return 0.01 * self.alpha * self.gas2dust
+                return 100.0 * self.gas2dust * self.alpha
 
-        return UVReactionRateTerm(self.alpha, self.gas2dust)
+        return H2ReactionRateTerm(self.alpha, self.gas2dust)

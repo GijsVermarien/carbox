@@ -7,9 +7,8 @@ import jax.numpy as jnp
 
 @jax.jit
 def get_rates(tgas, cr_rate, gnot):
-
     # O+ + H2 -> OH+ + H
-    k0 =  1.6e-9
+    k0 = 1.6e-9
 
     # OH+ + H2 -> H2O+ + H
     k1 = 1e-9
@@ -80,4 +79,31 @@ def get_rates(tgas, cr_rate, gnot):
     # H2O -> OH + H
     k23 = 7.72e-10 * gnot
 
-    return jnp.hstack([k0, k1, k2, k3, k4, k5, k6, k7, k8, k9, k10, k11, k12, k13, k14, k15, k16, k17, k18, k19, k20, k21, k22, k23])
+    return jnp.hstack(
+        [
+            k0,
+            k1,
+            k2,
+            k3,
+            k4,
+            k5,
+            k6,
+            k7,
+            k8,
+            k9,
+            k10,
+            k11,
+            k12,
+            k13,
+            k14,
+            k15,
+            k16,
+            k17,
+            k18,
+            k19,
+            k20,
+            k21,
+            k22,
+            k23,
+        ]
+    )

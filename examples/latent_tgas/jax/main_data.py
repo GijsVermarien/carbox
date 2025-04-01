@@ -38,7 +38,7 @@ simulation_parameters = {
     "t_gas_init": 5e1,  # [1e1, 1e5]
 }
 
-logging.basicConfig(filename="example.log", encoding="utf-8", level=logging.DEBUG)
+# logging.basicConfig(filename="example.log", encoding="utf-8", level=logging.DEBUG)
 
 # seconds per year
 spy = 3600.0 * 24 * 365.0
@@ -58,12 +58,12 @@ y0 = jnp.array(y0)
 # Cosmic ray ionisation rate and radiation field
 
 # Integrate the system for 1 Myr
-tend = 1e6 * spy
+# tend = 1e6 * spy
 
 # Define the initial state and time span
 initial_state = y0
-t0 = 0.0
-t1 = tend
+# t0 = 0.0
+# t1 = tend
 
 from diffrax import Dopri5, Kvaerno5, ODETerm, PIDController, SaveAt, diffeqsolve
 
@@ -71,75 +71,65 @@ from diffrax import Dopri5, Kvaerno5, ODETerm, PIDController, SaveAt, diffeqsolv
 solver = Kvaerno5()
 
 # Define the differential equation problem'
+
+
+cr_rate = jnp.array(simulation_parameters["cr_rate"])
+gnot = jnp.array(simulation_parameters["gnot"])
+
+
 problem = ODETerm(lambda t, y, args: fex(t, y, args[0], args[1]))
 
 
+tend = 1e6
+
+
 # Solve the problem
+@eqx.filter_jit
 def solver_wrap(y0):
     return diffeqsolve(
         problem,
         solver,
         t0=0.0,
-        dt0=0.001 * tend,
-        t1=tend,
+        t1=spy * tend,
+        dt0=1e-6,
         y0=y0,
         stepsize_controller=PIDController(
-            atol=1e-18,
-            rtol=1e-12,
+            atol=1e-20,
+            rtol=1e-14,
         ),
-        saveat=SaveAt(ts=spy * jnp.logspace(-14, 6, 1000)),
-        args=[simulation_parameters["cr_rate"], simulation_parameters["gnot"]],
+        saveat=SaveAt(ts=spy * jnp.logspace(-5, np.log10(tend), 1000)),
+        args=(cr_rate, gnot),
         max_steps=16**3,
     )
 
 
 solver_wrap(y0)
 
-samples = 100
+samples = 1
 start = datetime.now()
 for i in range(samples):
-    solution, grad = eqx.filter_value_and_grad(solver_wrap)(y0)
+    solution = solver_wrap(y0)
 print(
     f"Average time taken for {samples} samples: ",
     (datetime.now() - start) / samples,
 )
 
-# print(solution)
-# solution = diffeqsolve(term, solver, t0=0, t1=1, dt0=0.1, y0=y0)
-
 # Extract the solution
 sol_t = solution.ts
 sol_y = solution.ys.T
 
-
-# Print the minimum abundance to check convergence
-# print("Minimum solver abundance: ", sol_y.min())
-
 df = pd.DataFrame(solution.ys)
 df.columns = names
-# print(solution)
-ions = [n for n in names if n[-1] == "+"]
-# print(ions)
-# print("Ion density: ", df[ions].sum(axis=1))
-# print("Electron density: ", df["E"])
-
-# Plot the abundances
-colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
-lss = ["-", "--", ":"]
-# print(solution.ts.shape)
-# print(solution.ys.shape)
-
 df = pd.DataFrame(solution.ys, index=solution.ts, columns=names)
-df.to_csv("jax.csv")
-# print(df.head())
-for i, lab in enumerate(names[:-1]):
-    plt.loglog(
-        solution.ts / spy,
-        solution.ys[:, i],
-        label=lab,
-        color=colors[i % len(colors)],
-        ls=lss[i // len(colors)],
-    )
+df.to_csv("jax_no_heating.csv")
 
-plt.loglog(solution.ts / spy, solution.ys[:, -1], label="Tgas", color="k")
-plt.legend(loc="best", ncol=2, fontsize=6)
+
+# Reevaluate the evaluations
+dy = jnp.zeros_like(sol_y)
+for i, (t, y) in enumerate(zip(sol_t, sol_y.T)):
+    dy = dy.at[:, i].set(fex(t, y, cr_rate, gnot))
+print(sol_t.shape, sol_y.shape)
+df = pd.DataFrame(dy).T
+df.columns = names
+df.index = sol_t
+df.to_csv("jax_dy_no_heating.csv")

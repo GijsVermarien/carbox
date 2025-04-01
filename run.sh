@@ -1,0 +1,9 @@
+cd examples/latent_tgas/jax/
+python main_data.py
+cd ../scipy
+python main_data.py
+cd ../../../carbox
+python parser.py
+cd ../
+python plot_flux_no_heating.py
+python plot_abunds_no_heating.py

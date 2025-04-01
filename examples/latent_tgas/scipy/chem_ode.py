@@ -19,7 +19,9 @@ def fex(t, y, cr_rate, gnot):
     cool = get_cooling(y[:nspecies], tgas)
     heat = get_heating(y[:nspecies], tgas, cr_rate, gnot)
 
-    dy[idx_tgas] = (gamma_ad - 1e0) * (heat - cool) / kboltzmann / ntot
+    # dy[idx_tgas] = (gamma_ad - 1e0) * (heat - cool) / kboltzmann / ntot
+    # Disable heating and cooling:
+    dy[idx_tgas] = 0.0
 
     # enable this to figure out the heating and cooling comparison
     # print(f"scipy,{t:2.2e},{heat},{cool}")

@@ -41,7 +41,8 @@ y0[idx_C] = simulation_parameters["ntot"] * simulation_parameters["C_fraction"]
 tend = 1e6 * spy
 # Solve the system using the BDF method
 
-samples = 100
+# Increase this number for benchmarking
+samples = 1
 start = datetime.now()
 for i in range(samples):
     sol = solve_ivp(
@@ -50,7 +51,7 @@ for i in range(samples):
         y0,
         "BDF",
         atol=1e-18,
-        rtol=1e-12,
+        rtol=1e-14,
         args=(simulation_parameters["cr_rate"], simulation_parameters["gnot"]),
     )
 print(f"Average time taken for {samples} samples: ", (datetime.now() - start) / samples)
@@ -60,26 +61,21 @@ print(f"Average time taken for {samples} samples: ", (datetime.now() - start) / 
 if not sol.success:
     print(sol.message)
 
-# Print the minimum abundance to check convergence
-# print("Minimum solver abundance: ", sol.y.min())
-
-
-# Plot the abundances
-colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
-lss = ["-", "--", ":"]
-for i, lab in enumerate(names[:-1]):
-    plt.loglog(
-        sol.t / spy,
-        sol.y[i],
-        label=lab,
-        color=colors[i % len(colors)],
-        ls=lss[i // len(colors)],
-    )
-plt.loglog(sol.t / spy, sol.y[-1], label="Tgas", color="k")
-plt.legend(loc="best", ncol=2, fontsize=6)
-# plt.show()
-
 import pandas as pd
 
-df = pd.DataFrame(sol.y.T, index=sol.t, columns=names)
-df.to_csv("scipy.csv")
+sol_y = sol.y
+sol_t = sol.t
+
+df = pd.DataFrame(sol_y.T, index=sol_t, columns=names)
+df.to_csv("scipy_no_heating.csv")
+
+# Reevaluate the evaluations
+dy = np.zeros_like(sol_y)
+for i, (t, y) in enumerate(zip(sol_t, sol_y.T)):
+    dy[:, i] = fex(
+        t, y, simulation_parameters["cr_rate"], simulation_parameters["gnot"]
+    )
+df = pd.DataFrame(dy).T
+df.columns = names
+df.index = sol_t
+df.to_csv("scipy_dy_no_heating.csv")

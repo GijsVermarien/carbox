@@ -4,11 +4,22 @@ import numpy as np
 from network import Network
 from constants import elemental_dict
 from reactions import KAReaction, CRReaction, FUVReaction, H2FormReaction
+import matplotlib.pyplot as plt
+
 
 import diffrax as dx
+import equinox as eqx
+
+import jax.numpy as jnp
+import jax
+
+jax.config.update("jax_enable_x64", True)
+jax.config.update("jax_debug_nans", True)
 
 GAS2DUST = 0.01
 
+
+# FUTURE: 2 times reactant  4 times product
 reaction_by_shorthand_name = {
     "KA": lambda r1, r2, p1, p2, a, b, c, rtype: KAReaction(
         rtype, (r1, r2), (p1, p2), a, b, c
@@ -71,9 +82,26 @@ def parse_weights(molecules):
 
 # print(parse("HCO3HCO+", md))
 
+simulation_parameters = {
+    # Hydrogen number density
+    "ntot": 1e4,  # [1e2 - 1e6]
+    # Fractional abunadnce of oxygen
+    "O_fraction": 2e-4,  # [1e-5, 1e-3]
+    # Fractional abundance of carbon
+    "C_fraction": 1e-4,  # [1e-5, 1e-3]
+    # Cosmic ray ionisation rate
+    "cr_rate": 1e-17,  # enchance up to 1e-14
+    # Radiation field
+    "gnot": 1e0,  # enchance up to 1e5
+    # t_gas_init
+    "t_gas_init": 5e1,  # [1e1, 1e6]
+}
+
+spy = 3600.0 * 24 * 365.0
+
 
 if __name__ == "__main__":
-    reactions_file = pd.read_csv("data/simple_latent_tgas.csv")
+    reactions_file = pd.read_csv("../data/simple_latent_tgas.csv")
     # Get the unique species from the reaction file
     species = list(
         set(reactions_file["r1"])
@@ -88,12 +116,94 @@ if __name__ == "__main__":
 
     # Parse the reactions:
     reactions = [
-        reaction_by_shorthand_name[reac[-1]](*reac)
+        reaction_by_shorthand_name[reac.iloc[-1]](*reac)
         for idx, reac in reactions_file.iterrows()
     ]
-    # Jreaction = [reaction() for reaction in reactions]
 
+    # Create the reaction network and get the ODE system
     reaction_network = Network(species, reactions)
-    # print(reaction_network.incidence)
     system = reaction_network.get_ode()
-    system(np.ones(16) * 1e-5, 10.0, 1e-17, 1e0)
+
+    fig, ax = plt.subplots(1, 1, figsize=(10, 5))
+    # Plot the reaction network
+    ax.imshow(reaction_network.incidence.todense().T)
+    ax.set_xticks(np.arange(len(reaction_network.species)))
+    ax.set_yticks(np.arange(len(reaction_network.reactions)))
+    ax.set_xticklabels(reaction_network.species, rotation=90)
+    ax.set_yticklabels(reaction_network.reactions)
+
+    y0 = jnp.ones(len(reaction_network.species)) * 1e-20 * simulation_parameters["ntot"]
+    # The initial molecular hydrogen abundance
+    y0 = y0.at[reaction_network.get_index("H2")].set(simulation_parameters["ntot"])
+    # The intial carbon and oxygen abundances
+    y0 = y0.at[reaction_network.get_index("O")].set(
+        simulation_parameters["ntot"] * simulation_parameters["O_fraction"]
+    )
+    y0 = y0.at[reaction_network.get_index("C")].set(
+        simulation_parameters["ntot"] * simulation_parameters["C_fraction"]
+    )
+
+    tend = 1e6
+    system = eqx.filter_jit(system)
+    solution = dx.diffeqsolve(
+        dx.ODETerm(lambda t, y, args: system(t, y, args[0], args[1], args[2])),
+        dx.Kvaerno5(),
+        y0=y0,
+        t0=0.0,
+        t1=spy * tend,
+        dt0=1e-6,
+        saveat=dx.SaveAt(ts=spy * jnp.logspace(-5, np.log10(tend), 1000)),
+        stepsize_controller=dx.PIDController(
+            atol=1e-18,
+            rtol=1e-12,
+        ),
+        args=[
+            simulation_parameters["t_gas_init"],
+            simulation_parameters["cr_rate"],
+            simulation_parameters["gnot"],
+        ],
+        max_steps=16**3,
+    )
+
+    # Extract the solution
+    sol_t = solution.ts
+    sol_y = solution.ys.T
+
+    # Plot the solution
+    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+    df = pd.DataFrame(solution.ys)
+    df.columns = reaction_network.species
+    ions = [n for n in reaction_network.species if n[-1] == "+"]
+
+    # Plot the abundances
+    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+    lss = ["-", "--", ":"]
+
+    df = pd.DataFrame(solution.ys, index=solution.ts, columns=reaction_network.species)
+    df.to_csv("carbox.csv")
+    for i, lab in enumerate(reaction_network.species[:-1]):
+        ax[0].loglog(
+            solution.ts / spy,
+            solution.ys[:, i],
+            label=lab,
+            color=colors[i % len(colors)],
+            ls=lss[i // len(colors)],
+        )
+
+    # plt.loglog(solution.ts / spy, solution.ys[:, -1], label="Tgas", color="k")
+    ax[0].legend(loc="best", ncol=2, fontsize=6)
+    ax[0].set_xlim(1e-20, 1e6)
+
+    conservation = (reaction_network.get_elemental_contents() @ df.T).T
+    conservation.columns = ["C", "H", "O", "charge"]
+    conservation.plot(loglog=True, ax=ax[1])
+
+    # Reevaluate the function evaluations
+    dy = jnp.zeros_like(sol_y)
+    for i, (t, y) in enumerate(zip(sol_t, sol_y.T)):
+        dy = dy.at[:, i].set(system(t, y, 50.0, 1e-17, 1e0))
+
+    df = pd.DataFrame(dy).T
+    df.columns = reaction_network.species
+    df.index = sol_t
+    df.to_csv("carbox_dy_no_heating.csv")
