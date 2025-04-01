@@ -20,6 +20,9 @@ from scipy.integrate import solve_ivp
 jax.config.update("jax_enable_x64", True)
 jax.config.update("jax_debug_nans", True)
 
+from chem_rates import get_rates, reaction_strings
+
+
 # x = random.uniform(random.key(0), (1000,), dtype=jnp.float64)
 # print(x.dtype)  # --> dtype('float64')
 
@@ -80,12 +83,13 @@ gnot = jnp.array(simulation_parameters["gnot"])
 problem = ODETerm(lambda t, y, args: fex(t, y, args[0], args[1]))
 
 
-tend = 1e6
+tend = 1e1
 
 
 # Solve the problem
 @eqx.filter_jit
 def solver_wrap(y0):
+    print("compiling")
     return diffeqsolve(
         problem,
         solver,
@@ -94,8 +98,8 @@ def solver_wrap(y0):
         dt0=1e-6,
         y0=y0,
         stepsize_controller=PIDController(
-            atol=1e-20,
-            rtol=1e-14,
+            atol=1e-18,
+            rtol=1e-12,
         ),
         saveat=SaveAt(ts=spy * jnp.logspace(-5, np.log10(tend), 1000)),
         args=(cr_rate, gnot),
@@ -106,13 +110,16 @@ def solver_wrap(y0):
 solver_wrap(y0)
 
 samples = 1
-start = datetime.now()
-for i in range(samples):
-    solution = solver_wrap(y0)
+
+with jax.profiler.trace("/tmp/latent_tgas", create_perfetto_link=True):
+    start = datetime.now()
+    for i in range(samples):
+        solution = solver_wrap(y0)
 print(
     f"Average time taken for {samples} samples: ",
     (datetime.now() - start) / samples,
 )
+print(f"Solver report: {solution.stats}")
 
 # Extract the solution
 sol_t = solution.ts
@@ -133,3 +140,15 @@ df = pd.DataFrame(dy).T
 df.columns = names
 df.index = sol_t
 df.to_csv("jax_dy_no_heating.csv")
+
+rates = np.zeros((len(sol_t), len(reaction_strings)))
+for i, (t, y) in enumerate(zip(sol_t, sol_y.T)):
+    rates[i] = get_rates(
+        simulation_parameters["t_gas_init"],
+        simulation_parameters["cr_rate"],
+        simulation_parameters["gnot"],
+    )
+df = pd.DataFrame(rates)
+df.columns = reaction_strings
+df.index = sol_t
+df.to_csv("jax_rates.csv")

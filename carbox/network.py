@@ -1,6 +1,6 @@
 from typing import List
 
-from reactions import Reaction
+from reactions import JReactionRateTerm, Reaction
 from species import Species
 from dataclasses import dataclass
 import jax.numpy as jnp
@@ -8,17 +8,53 @@ from jax.experimental import sparse
 import jax
 import equinox as eqx
 
+from functools import partial
+
 
 class JNetwork(eqx.Module):
     incidence: jnp.array
-    reactions: List[Reaction]
-    reactant_multiply_indices: jnp.array
+    reactions: List[JReactionRateTerm]
+    reactant_multipliers: jnp.array
 
     def __init__(self, incidence, reactions):
         self.incidence = incidence
         self.reactions = reactions
-        self.reactant_multiply_indices = jnp.argwhere(self.incidence.todense().T < 0)
+        # In order to correctly get the flux, we need to multiply the rates per reaction
+        # by the abundances of the reactants. This is done by getting the indices of the
+        # reactants that need to be multiplied by the abundances and ensure they are repeated
+        # the correct number of times. Use double entries to avoid power in the computation.
+        reactants_for_multiply = jnp.argwhere(self.incidence.T < 0)
+        multiplier_list = []
+        for reaction_idx, species_idx in reactants_for_multiply:
+            for times in range(-self.incidence[species_idx, reaction_idx]):
+                multiplier_list.append([reaction_idx, species_idx])
+        self.reactant_multipliers = jnp.array(multiplier_list)
 
+        # Duplicate the entries for the reactants that need to be multiplied by the
+
+    @partial(jax.profiler.annotate_function, name="JNetwork.get_rates")
+    def get_rates(self, temperature, cr_rate, fuv_rate):
+        """
+        Get the reaction rates for the given temperature, cosmic ray ionisation rate,
+        and FUV radiation field.
+        """
+        rates = jnp.empty(len(self.reactions))
+        for i, reaction in enumerate(self.reactions):
+            rates = rates.at[i].set(reaction(temperature, cr_rate, fuv_rate))
+        return rates
+
+    @partial(
+        jax.profiler.annotate_function, name="JNetwork.multiply_rates_by_abundance"
+    )
+    def multiply_rates_by_abundance(self, rates, abundances):
+        """
+        Multiply the rates by the abundances of the reactants.
+        """
+        for reac_idx, species_idx in self.reactant_multipliers:
+            rates = rates.at[reac_idx].set(rates[reac_idx] * abundances[species_idx])
+        return rates
+
+    @partial(jax.profiler.annotate_function, name="JNetwork._call__")
     def __call__(
         self,
         time: jnp.array,
@@ -30,13 +66,10 @@ class JNetwork(eqx.Module):
     ) -> jnp.array:
         # abundances = abundances * density
         # Calculate the reaction rates
-        rates = jnp.zeros(len(self.reactions))
-        for i, reaction in enumerate(self.reactions):
-            rates = rates.at[i].set(reaction(temperature, cr_rate, fuv_rate))
+        rates = self.get_rates(temperature, cr_rate, fuv_rate)
         # jax.debug.print("rates: {rates}", rates=rates)
         # Get the matrix that encodes the reactants that need to be multiplied to get the flux
-        for reac_idx, species_idx in self.reactant_multiply_indices:
-            rates = rates.at[reac_idx].set(rates[reac_idx] * abundances[species_idx])
+        rates = self.multiply_rates_by_abundance(rates, abundances)
         # Calculate the change in abundances
         # TODO: check that we are not loosing too much precision with the matmul?
         # Use BCCOO to avoid conversion to dense
@@ -66,7 +99,7 @@ class Network:
                 incidence = incidence.at[index[reactant], j].add(-1)
             for product in reaction.products:
                 incidence = incidence.at[index[product], j].add(1)
-        if True:
+        if False:
             incidence = sparse.BCOO.fromdense(incidence)
         return incidence
 
@@ -101,7 +134,6 @@ class Network:
                     elemental_content = elemental_content.at[
                         element_map[element], i
                     ].set(number_of_atoms)
-
         return elemental_content
 
     def get_ode(self):

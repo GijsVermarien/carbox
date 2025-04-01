@@ -4,8 +4,38 @@ from chem_commons import dust2gas, nreactions
 import jax
 import jax.numpy as jnp
 
+from functools import partial
+
+reaction_strings = [
+    "O+ + H2 -> OH+ + H",
+    "OH+ + H2 -> H2O+ + H",
+    "H2O+ + H2 -> H3O+ + H",
+    "H3O+ + E -> H2O + H",
+    "H2O+ + E -> OH + H",
+    "H2O+ + E -> O + H2",
+    "OH+ + E -> O + H",
+    "O+ + E -> O",
+    "O -> O+ + E",
+    "C -> C+ + E",
+    "CO -> C + O",
+    "C+ + E -> C",
+    "C + OH -> CO + H",
+    "C+ + OH -> CO+ + H",
+    "CO+ + H -> CO + H+",
+    "CO+ + H2 -> HCO+ + H",
+    "HCO+ + E -> CO + H",
+    "H+ + E -> H",
+    "H + H -> H2",
+    "H2 -> H + H",
+    "H2 -> H + H",
+    "C -> C+ + E",
+    "CO -> C + O",
+    "H2O -> OH + H",
+]
+
 
 @jax.jit
+@partial(jax.profiler.annotate_function, name="get_rates")
 def get_rates(tgas, cr_rate, gnot):
     # O+ + H2 -> OH+ + H
     k0 = 1.6e-9

@@ -1,3 +1,4 @@
+from datetime import datetime
 import pandas as pd
 import numpy as np
 
@@ -88,13 +89,13 @@ simulation_parameters = {
     # Fractional abunadnce of oxygen
     "O_fraction": 2e-4,  # [1e-5, 1e-3]
     # Fractional abundance of carbon
-    "C_fraction": 1e-4,  # [1e-5, 1e-3]
+    "C_fraction": jnp.array(1e-4),  # [1e-5, 1e-3]
     # Cosmic ray ionisation rate
-    "cr_rate": 1e-17,  # enchance up to 1e-14
+    "cr_rate": jnp.array(1e-17),  # enchance up to 1e-14
     # Radiation field
     "gnot": 1e0,  # enchance up to 1e5
     # t_gas_init
-    "t_gas_init": 5e1,  # [1e1, 1e6]
+    "t_gas_init": jnp.array(5e1),  # [1e1, 1e6]
 }
 
 spy = 3600.0 * 24 * 365.0
@@ -126,11 +127,12 @@ if __name__ == "__main__":
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 5))
     # Plot the reaction network
-    ax.imshow(reaction_network.incidence.todense().T)
+    ax.imshow(reaction_network.incidence.T)
     ax.set_xticks(np.arange(len(reaction_network.species)))
     ax.set_yticks(np.arange(len(reaction_network.reactions)))
     ax.set_xticklabels(reaction_network.species, rotation=90)
     ax.set_yticklabels(reaction_network.reactions)
+    # plt.show()
 
     y0 = jnp.ones(len(reaction_network.species)) * 1e-20 * simulation_parameters["ntot"]
     # The initial molecular hydrogen abundance
@@ -143,29 +145,45 @@ if __name__ == "__main__":
         simulation_parameters["ntot"] * simulation_parameters["C_fraction"]
     )
 
-    tend = 1e6
-    system = eqx.filter_jit(system)
-    solution = dx.diffeqsolve(
-        dx.ODETerm(lambda t, y, args: system(t, y, args[0], args[1], args[2])),
-        dx.Kvaerno5(),
-        y0=y0,
-        t0=0.0,
-        t1=spy * tend,
-        dt0=1e-6,
-        saveat=dx.SaveAt(ts=spy * jnp.logspace(-5, np.log10(tend), 1000)),
-        stepsize_controller=dx.PIDController(
-            atol=1e-18,
-            rtol=1e-12,
-        ),
-        args=[
-            simulation_parameters["t_gas_init"],
-            simulation_parameters["cr_rate"],
-            simulation_parameters["gnot"],
-        ],
-        max_steps=16**3,
+    tend = 1e1
+
+    @eqx.filter_jit
+    def get_solution(system, y0, tend, simulation_parameters):
+        print("compiling")
+        return dx.diffeqsolve(
+            dx.ODETerm(lambda t, y, args: system(t, y, args[0], args[1], args[2])),
+            dx.Kvaerno5(),
+            y0=y0,
+            t0=0.0,
+            t1=spy * tend,
+            dt0=1e-6,
+            saveat=dx.SaveAt(ts=spy * jnp.logspace(-5, np.log10(tend), 1000)),
+            stepsize_controller=dx.PIDController(
+                atol=1e-18,
+                rtol=1e-12,
+            ),
+            args=[
+                simulation_parameters["t_gas_init"],
+                simulation_parameters["cr_rate"],
+                simulation_parameters["gnot"],
+            ],
+            max_steps=16**3,
+        )
+
+    get_solution(system, y0, tend, simulation_parameters)
+
+    samples = 1
+    with jax.profiler.trace("/tmp/carbox", create_perfetto_link=True):
+        start = datetime.now()
+        for i in range(samples):
+            solution = get_solution(system, y0, tend, simulation_parameters)
+    print(
+        f"Average time taken for {samples} samples: ",
+        (datetime.now() - start) / samples,
     )
 
     # Extract the solution
+    print(f"Solver report: {solution.stats}")
     sol_t = solution.ts
     sol_y = solution.ys.T
 
@@ -201,9 +219,32 @@ if __name__ == "__main__":
     # Reevaluate the function evaluations
     dy = jnp.zeros_like(sol_y)
     for i, (t, y) in enumerate(zip(sol_t, sol_y.T)):
-        dy = dy.at[:, i].set(system(t, y, 50.0, 1e-17, 1e0))
+        dy = dy.at[:, i].set(
+            system(
+                t,
+                y,
+                simulation_parameters["t_gas_init"],
+                simulation_parameters["cr_rate"],
+                simulation_parameters["gnot"],
+            )
+        )
 
     df = pd.DataFrame(dy).T
     df.columns = reaction_network.species
     df.index = sol_t
     df.to_csv("carbox_dy_no_heating.csv")
+
+    rates = jnp.zeros((len(sol_t), len(reaction_network.reactions)))
+    for i, (t, y) in enumerate(zip(sol_t, sol_y.T)):
+        for j, reaction in enumerate(system.reactions):
+            rates = rates.at[i, j].set(
+                reaction(
+                    simulation_parameters["t_gas_init"],
+                    simulation_parameters["cr_rate"],
+                    simulation_parameters["gnot"],
+                )
+            )
+    df = pd.DataFrame(rates)
+    df.columns = [r.reaction_type for r in reaction_network.reactions]
+    df.index = sol_t
+    df.to_csv("carbox_rates.csv")

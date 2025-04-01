@@ -7,6 +7,8 @@ from tqdm import tqdm
 
 from scipy.integrate import solve_ivp
 
+from chem_rates import get_rates, reaction_strings
+
 simulation_parameters = {
     # Hydrogen number density
     "ntot": 1e4,  # [1e2 - 1e6]
@@ -42,7 +44,7 @@ tend = 1e6 * spy
 # Solve the system using the BDF method
 
 # Increase this number for benchmarking
-samples = 1
+samples = 10
 start = datetime.now()
 for i in range(samples):
     sol = solve_ivp(
@@ -51,7 +53,7 @@ for i in range(samples):
         y0,
         "BDF",
         atol=1e-18,
-        rtol=1e-14,
+        rtol=1e-12,
         args=(simulation_parameters["cr_rate"], simulation_parameters["gnot"]),
     )
 print(f"Average time taken for {samples} samples: ", (datetime.now() - start) / samples)
@@ -79,3 +81,16 @@ df = pd.DataFrame(dy).T
 df.columns = names
 df.index = sol_t
 df.to_csv("scipy_dy_no_heating.csv")
+
+
+rates = np.zeros((len(sol_t), len(reaction_strings)))
+for i, (t, y) in enumerate(zip(sol_t, sol_y.T)):
+    rates[i] = get_rates(
+        simulation_parameters["t_gas_init"],
+        simulation_parameters["cr_rate"],
+        simulation_parameters["gnot"],
+    )
+df = pd.DataFrame(rates)
+df.columns = reaction_strings
+df.index = sol_t
+df.to_csv("scipy_rates.csv")

@@ -8,8 +8,11 @@ from chem_rates import get_rates
 import jax
 import jax.numpy as jnp
 
+from functools import partial
 
-@eqx.filter_jit
+
+# @eqx.filter_jit
+@partial(jax.profiler.annotate_function, name="fex")
 def fex(t, y, cr_rate=1e-17, gnot=1e0):
     # cr_rate = 1e-17
     # gnot = 1e0

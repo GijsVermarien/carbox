@@ -1,6 +1,33 @@
 import numpy as np
 from chem_commons import dust2gas, nreactions
 
+reaction_strings = [
+    "O+ + H2 -> OH+ + H",
+    "OH+ + H2 -> H2O+ + H",
+    "H2O+ + H2 -> H3O+ + H",
+    "H3O+ + E -> H2O + H",
+    "H2O+ + E -> OH + H",
+    "H2O+ + E -> O + H2",
+    "OH+ + E -> O + H",
+    "O+ + E -> O",
+    "O -> O+ + E",
+    "C -> C+ + E",
+    "CO -> C + O",
+    "C+ + E -> C",
+    "C + OH -> CO + H",
+    "C+ + OH -> CO+ + H",
+    "CO+ + H -> CO + H+",
+    "CO+ + H2 -> HCO+ + H",
+    "HCO+ + E -> CO + H",
+    "H+ + E -> H",
+    "H + H -> H2",
+    "H2 -> H + H",
+    "H2 -> H + H",
+    "C -> C+ + E",
+    "CO -> C + O",
+    "H2O -> OH + H",
+]
+
 
 def get_rates(tgas, cr_rate, gnot):
     k = np.zeros(nreactions)
