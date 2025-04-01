@@ -111,7 +111,7 @@ solver_wrap(y0)
 
 samples = 1
 
-with jax.profiler.trace("/tmp/latent_tgas", create_perfetto_link=True):
+with jax.profiler.trace("/tmp/latent_tgas", create_perfetto_trace=True):
     start = datetime.now()
     for i in range(samples):
         solution = solver_wrap(y0)

@@ -173,7 +173,7 @@ if __name__ == "__main__":
     get_solution(system, y0, tend, simulation_parameters)
 
     samples = 1
-    with jax.profiler.trace("/tmp/carbox", create_perfetto_link=True):
+    with jax.profiler.trace("/tmp/carbox", create_perfetto_trace=True):
         start = datetime.now()
         for i in range(samples):
             solution = get_solution(system, y0, tend, simulation_parameters)
