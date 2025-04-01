@@ -125,14 +125,14 @@ if __name__ == "__main__":
     reaction_network = Network(species, reactions)
     system = reaction_network.get_ode()
 
-    fig, ax = plt.subplots(1, 1, figsize=(10, 5))
-    # Plot the reaction network
-    ax.imshow(reaction_network.incidence.T)
-    ax.set_xticks(np.arange(len(reaction_network.species)))
-    ax.set_yticks(np.arange(len(reaction_network.reactions)))
-    ax.set_xticklabels(reaction_network.species, rotation=90)
-    ax.set_yticklabels(reaction_network.reactions)
-    # plt.show()
+    # fig, ax = plt.subplots(1, 1, figsize=(10, 5))
+    # # Plot the reaction network
+    # ax.imshow(reaction_network.incidence.T)
+    # ax.set_xticks(np.arange(len(reaction_network.species)))
+    # ax.set_yticks(np.arange(len(reaction_network.reactions)))
+    # ax.set_xticklabels(reaction_network.species, rotation=90)
+    # ax.set_yticklabels(reaction_network.reactions)
+    # # plt.show()
 
     y0 = jnp.ones(len(reaction_network.species)) * 1e-20 * simulation_parameters["ntot"]
     # The initial molecular hydrogen abundance
@@ -145,7 +145,7 @@ if __name__ == "__main__":
         simulation_parameters["ntot"] * simulation_parameters["C_fraction"]
     )
 
-    tend = 1e1
+    tend = 1e6
 
     @eqx.filter_jit
     def get_solution(system, y0, tend, simulation_parameters):
@@ -172,11 +172,11 @@ if __name__ == "__main__":
 
     get_solution(system, y0, tend, simulation_parameters)
 
-    samples = 1
-    with jax.profiler.trace("/tmp/carbox", create_perfetto_trace=True):
-        start = datetime.now()
-        for i in range(samples):
-            solution = get_solution(system, y0, tend, simulation_parameters)
+    samples = 10
+    # with jax.profiler.trace("/tmp/carbox", create_perfetto_trace=True):
+    start = datetime.now()
+    for i in range(samples):
+        solution = get_solution(system, y0, tend, simulation_parameters)
     print(
         f"Average time taken for {samples} samples: ",
         (datetime.now() - start) / samples,
@@ -248,3 +248,8 @@ if __name__ == "__main__":
     df.columns = [r.reaction_type for r in reaction_network.reactions]
     df.index = sol_t
     df.to_csv("carbox_rates.csv")
+
+    from jax import make_jaxpr
+
+    with open("carbox_jaxpr.txt", "w") as f:
+        f.write(str(make_jaxpr(system)(0.0, y0, 1e1, 1e-17, 1e0)))

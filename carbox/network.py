@@ -23,15 +23,35 @@ class JNetwork(eqx.Module):
         # by the abundances of the reactants. This is done by getting the indices of the
         # reactants that need to be multiplied by the abundances and ensure they are repeated
         # the correct number of times. Use double entries to avoid power in the computation.
-        reactants_for_multiply = jnp.argwhere(self.incidence.T < 0)
-        multiplier_list = []
-        for reaction_idx, species_idx in reactants_for_multiply:
-            for times in range(-self.incidence[species_idx, reaction_idx]):
-                multiplier_list.append([reaction_idx, species_idx])
-        self.reactant_multipliers = jnp.array(multiplier_list)
+        reactants_for_multiply = jnp.argwhere(self.incidence.todense().T < 0)
+        times_for_multiply = -self.incidence[
+            reactants_for_multiply[:, 1], reactants_for_multiply[:, 0]
+        ].todense()
+        # We cannot do multiplies with duplicate entries, so create an array
+        # with two columns, one for each of the reactants. The second row
+        # is filled with an unreacable index, which we ignore by using "drop" in the
+        # multiply operation. See: https://github.com/jax-ml/jax/issues/9296
+        # multiplier allows us to reactions with identical reactants: H + H -> H2
+        reactant_multiplier = jnp.full(
+            (len(self.reactions), 2), self.incidence.shape[0]
+        )
+        for (reactant_idx, spec_idx), multiplier in zip(
+            reactants_for_multiply, times_for_multiply
+        ):
+            for i in range(multiplier):
+                # Write the first column if there is still a filler value:
+                if reactant_multiplier[reactant_idx, 0] == self.incidence.shape[0]:
+                    reactant_multiplier = reactant_multiplier.at[reactant_idx, 0].set(
+                        spec_idx
+                    )
+                # Else, write the second column:
+                else:
+                    reactant_multiplier = reactant_multiplier.at[reactant_idx, 1].set(
+                        spec_idx
+                    )
+        self.reactant_multipliers = reactant_multiplier
 
-        # Duplicate the entries for the reactants that need to be multiplied by the
-
+    @jax.jit
     @partial(jax.profiler.annotate_function, name="JNetwork.get_rates")
     def get_rates(self, temperature, cr_rate, fuv_rate):
         """
@@ -43,6 +63,7 @@ class JNetwork(eqx.Module):
             rates = rates.at[i].set(reaction(temperature, cr_rate, fuv_rate))
         return rates
 
+    @jax.jit
     @partial(
         jax.profiler.annotate_function, name="JNetwork.multiply_rates_by_abundance"
     )
@@ -50,9 +71,14 @@ class JNetwork(eqx.Module):
         """
         Multiply the rates by the abundances of the reactants.
         """
-        for reac_idx, species_idx in self.reactant_multipliers:
-            rates = rates.at[reac_idx].set(rates[reac_idx] * abundances[species_idx])
-        return rates
+        # We scatter the abunndances in two columns, with unity if it is monomolecular
+        # This is achieved by "dropping" values we cannnot reach. Then take the product of each row, and mulitply it with the rates.
+        rates_multiplier = jnp.ones_like(self.reactant_multipliers)
+        rates_multiplier = jnp.prod(
+            abundances.at[self.reactant_multipliers].get(mode="drop", fill_value=1.0),
+            axis=1,
+        )
+        return rates * rates_multiplier
 
     @partial(jax.profiler.annotate_function, name="JNetwork._call__")
     def __call__(
@@ -92,14 +118,14 @@ class Network:
 
     def construct_incidence(self, species, reactions):
         index = {species: idx for idx, species in enumerate(species)}
-        incidence = jnp.zeros((len(species), len(reactions)), dtype=jnp.int8)  # S, R
+        incidence = jnp.zeros((len(species), len(reactions)), dtype=jnp.int16)  # S, R
         # Fill the incidence matrix with all terms:
         for j, reaction in enumerate(reactions):
             for reactant in reaction.reactants:
                 incidence = incidence.at[index[reactant], j].add(-1)
             for product in reaction.products:
                 incidence = incidence.at[index[product], j].add(1)
-        if False:
+        if True:
             incidence = sparse.BCOO.fromdense(incidence)
         return incidence
 
@@ -116,7 +142,9 @@ class Network:
         # Create a dictionary to map species to their elemental content
         element_map = {species: idx for idx, species in enumerate(elements)}
         # Create an empty array to store the elemental content
-        elemental_content = jnp.zeros((len(elements), len(self.species)))
+        elemental_content = jnp.zeros(
+            (len(elements), len(self.species))
+        )  # ELEMENTS, SPECIES
         # Fill the elemental content array with the elemental content of each species
         for i, species in enumerate(self.species):
             for element in elements:

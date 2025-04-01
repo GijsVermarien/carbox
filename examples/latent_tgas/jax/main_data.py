@@ -83,7 +83,7 @@ gnot = jnp.array(simulation_parameters["gnot"])
 problem = ODETerm(lambda t, y, args: fex(t, y, args[0], args[1]))
 
 
-tend = 1e1
+tend = 1e6
 
 
 # Solve the problem
@@ -109,12 +109,12 @@ def solver_wrap(y0):
 
 solver_wrap(y0)
 
-samples = 1
+samples = 10
 
-with jax.profiler.trace("/tmp/latent_tgas", create_perfetto_trace=True):
-    start = datetime.now()
-    for i in range(samples):
-        solution = solver_wrap(y0)
+# with jax.profiler.trace("/tmp/latent_tgas", create_perfetto_trace=True):
+start = datetime.now()
+for i in range(samples):
+    solution = solver_wrap(y0)
 print(
     f"Average time taken for {samples} samples: ",
     (datetime.now() - start) / samples,
@@ -152,3 +152,8 @@ df = pd.DataFrame(rates)
 df.columns = reaction_strings
 df.index = sol_t
 df.to_csv("jax_rates.csv")
+
+from jax import make_jaxpr
+
+with open("jax_jaxpr.txt", "w") as f:
+    f.write(str(make_jaxpr(fex)(0.0, y0, 1e-17, 1e0)))
