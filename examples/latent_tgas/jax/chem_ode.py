@@ -11,8 +11,7 @@ import jax.numpy as jnp
 from functools import partial
 
 
-# @eqx.filter_jit
-@partial(jax.profiler.annotate_function, name="fex")
+@eqx.filter_jit
 def fex(t, y, cr_rate=1e-17, gnot=1e0):
     # cr_rate = 1e-17
     # gnot = 1e0

@@ -35,7 +35,6 @@ reaction_strings = [
 
 
 @jax.jit
-@partial(jax.profiler.annotate_function, name="get_rates")
 def get_rates(tgas, cr_rate, gnot):
     # O+ + H2 -> OH+ + H
     k0 = 1.6e-9

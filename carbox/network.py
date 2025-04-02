@@ -58,7 +58,6 @@ class JNetwork(eqx.Module):
         self.reactant_multipliers = reactant_multiplier
 
     @jax.jit
-    @partial(jax.profiler.annotate_function, name="JNetwork.get_rates")
     def get_rates(self, temperature, cr_rate, fuv_rate):
         """
         Get the reaction rates for the given temperature, cosmic ray ionisation rate,
@@ -69,14 +68,11 @@ class JNetwork(eqx.Module):
         # for i, reaction in enumerate(self.reactions):
         #     rates = rates.at[i].set(reaction(temperature, cr_rate, fuv_rate))
         # return rates
-        return jnp.array(
+        return jnp.hstack(
             [reaction(temperature, cr_rate, fuv_rate) for reaction in self.reactions]
         )
 
     @jax.jit
-    @partial(
-        jax.profiler.annotate_function, name="JNetwork.multiply_rates_by_abundance"
-    )
     def multiply_rates_by_abundance(self, rates, abundances):
         """
         Multiply the rates by the abundances of the reactants.

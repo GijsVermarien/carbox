@@ -78,10 +78,6 @@ def parse_weights(molecules):
     return [parse_atoms(x, mode="atomic_weight") for x in molecules]
 
 
-# md = load_mass_dict("atom_mass.dat")
-
-# print(parse("HCO3HCO+", md))
-
 simulation_parameters = {
     # Hydrogen number density
     "ntot": 1e4,  # [1e2 - 1e6]
