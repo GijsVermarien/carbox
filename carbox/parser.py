@@ -15,7 +15,6 @@ import jax.numpy as jnp
 import jax
 
 jax.config.update("jax_enable_x64", True)
-jax.config.update("jax_debug_nans", True)
 
 GAS2DUST = 0.01
 
@@ -23,16 +22,16 @@ GAS2DUST = 0.01
 # FUTURE: 2 times reactant  4 times product
 reaction_by_shorthand_name = {
     "KA": lambda r1, r2, p1, p2, a, b, c, rtype: KAReaction(
-        rtype, (r1, r2), (p1, p2), a, b, c
+        rtype, (r1, r2), (p1, p2), float(a), float(b), float(c)
     ),
     "CR": lambda r1, r2, p1, p2, a, b, c, rtype: CRReaction(
-        rtype, (r1, r2), (p1, p2), a
+        rtype, (r1, r2), (p1, p2), float(a)
     ),
     "FUV": lambda r1, r2, p1, p2, a, b, c, rtype: FUVReaction(
-        rtype, (r1, r2), (p1, p2), a
+        rtype, (r1, r2), (p1, p2), float(a)
     ),
     "H2Form": lambda r1, r2, p1, p2, a, b, c, rtype: H2FormReaction(
-        rtype, (r1, r2), (p1, p2), a, GAS2DUST
+        rtype, (r1, r2), (p1, p2), float(a), float(GAS2DUST)
     ),
 }
 

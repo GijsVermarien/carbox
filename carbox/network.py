@@ -16,17 +16,23 @@ class JNetwork(eqx.Module):
     reactions: List[JReactionRateTerm]
     reactant_multipliers: jnp.array
 
-    def __init__(self, incidence, reactions):
+    def __init__(self, incidence, reactions, dense=True):
         self.incidence = incidence
         self.reactions = reactions
         # In order to correctly get the flux, we need to multiply the rates per reaction
         # by the abundances of the reactants. This is done by getting the indices of the
         # reactants that need to be multiplied by the abundances and ensure they are repeated
         # the correct number of times. Use double entries to avoid power in the computation.
-        reactants_for_multiply = jnp.argwhere(self.incidence.todense().T < 0)
-        times_for_multiply = -self.incidence[
-            reactants_for_multiply[:, 1], reactants_for_multiply[:, 0]
-        ].todense()
+        if isinstance(incidence, sparse.BCOO):
+            reactants_for_multiply = jnp.argwhere(self.incidence.todense().T < 0)
+            times_for_multiply = -self.incidence[
+                reactants_for_multiply[:, 1], reactants_for_multiply[:, 0]
+            ].todense()
+        else:
+            reactants_for_multiply = jnp.argwhere(self.incidence.T < 0)
+            times_for_multiply = -self.incidence[
+                reactants_for_multiply[:, 1], reactants_for_multiply[:, 0]
+            ]
         # We cannot do multiplies with duplicate entries, so create an array
         # with two columns, one for each of the reactants. The second row
         # is filled with an unreacable index, which we ignore by using "drop" in the
@@ -58,10 +64,14 @@ class JNetwork(eqx.Module):
         Get the reaction rates for the given temperature, cosmic ray ionisation rate,
         and FUV radiation field.
         """
-        rates = jnp.empty(len(self.reactions))
-        for i, reaction in enumerate(self.reactions):
-            rates = rates.at[i].set(reaction(temperature, cr_rate, fuv_rate))
-        return rates
+        # TODO: optimization: The most Jax way to do optimize would be to create one class with all the reactions of one type and all their constants.
+        # rates = jnp.empty(len(self.reactions))
+        # for i, reaction in enumerate(self.reactions):
+        #     rates = rates.at[i].set(reaction(temperature, cr_rate, fuv_rate))
+        # return rates
+        return jnp.array(
+            [reaction(temperature, cr_rate, fuv_rate) for reaction in self.reactions]
+        )
 
     @jax.jit
     @partial(
@@ -109,12 +119,14 @@ class Network:
     species: List[Species]
     reactions: List[Reaction]
     incidence: jnp.array
+    use_sparse: bool
 
-    def __init__(self, species, reactions):
+    def __init__(self, species, reactions, use_sparse=True):
         self.species = species  # S
         self.reactions = reactions  # R
-        self.incidence = self.construct_incidence(self.species, self.reactions)  # S, R
+        self.use_sparse = use_sparse
         self.jreactions = []
+        self.incidence = self.construct_incidence(self.species, self.reactions)  # S, R
 
     def construct_incidence(self, species, reactions):
         index = {species: idx for idx, species in enumerate(species)}
@@ -125,7 +137,7 @@ class Network:
                 incidence = incidence.at[index[reactant], j].add(-1)
             for product in reaction.products:
                 incidence = incidence.at[index[product], j].add(1)
-        if True:
+        if self.use_sparse:
             incidence = sparse.BCOO.fromdense(incidence)
         return incidence
 
