@@ -17,36 +17,38 @@ class JNetwork(eqx.Module):
     reactant_multipliers: jnp.array
 
     def __init__(self, incidence, reactions, dense=True):
-        self.incidence = incidence
-        self.reactions = reactions
+        self.incidence = incidence  # S, R
+        self.reactions = reactions  # R
+        self.reactant_multipliers = self.get_reactant_multipliers(incidence)
+
+    def get_reactant_multipliers(self, incidence):
         # In order to correctly get the flux, we need to multiply the rates per reaction
         # by the abundances of the reactants. This is done by getting the indices of the
         # reactants that need to be multiplied by the abundances and ensure they are repeated
         # the correct number of times. Use double entries to avoid power in the computation.
         if isinstance(incidence, sparse.BCOO):
-            reactants_for_multiply = jnp.argwhere(self.incidence.todense().T < 0)
-            times_for_multiply = -self.incidence[
+            reactants_for_multiply = jnp.argwhere(incidence.todense().T < 0)
+            times_for_multiply = -incidence[
                 reactants_for_multiply[:, 1], reactants_for_multiply[:, 0]
             ].todense()
         else:
-            reactants_for_multiply = jnp.argwhere(self.incidence.T < 0)
-            times_for_multiply = -self.incidence[
+            reactants_for_multiply = jnp.argwhere(incidence.T < 0)
+            times_for_multiply = -incidence[
                 reactants_for_multiply[:, 1], reactants_for_multiply[:, 0]
             ]
         # We cannot do multiplies with duplicate entries, so create an array
         # with two columns, one for each of the reactants. The second row
-        # is filled with an unreacable index, which we ignore by using "drop" in the
+        # is filled with an unreachable index, which we ignore by using "drop" in the
         # multiply operation. See: https://github.com/jax-ml/jax/issues/9296
-        # multiplier allows us to reactions with identical reactants: H + H -> H2
-        reactant_multiplier = jnp.full(
-            (len(self.reactions), 2), self.incidence.shape[0]
-        )
+        filler_value = incidence.shape[0] + 1
+        reactant_multiplier = jnp.full((incidence.shape[1], 2), filler_value)
         for (reactant_idx, spec_idx), multiplier in zip(
             reactants_for_multiply, times_for_multiply
         ):
+            # multiplier allows us to reactions with identical reactants: H + H -> H2
             for i in range(multiplier):
                 # Write the first column if there is still a filler value:
-                if reactant_multiplier[reactant_idx, 0] == self.incidence.shape[0]:
+                if reactant_multiplier[reactant_idx, 0] == filler_value:
                     reactant_multiplier = reactant_multiplier.at[reactant_idx, 0].set(
                         spec_idx
                     )
@@ -55,7 +57,7 @@ class JNetwork(eqx.Module):
                     reactant_multiplier = reactant_multiplier.at[reactant_idx, 1].set(
                         spec_idx
                     )
-        self.reactant_multipliers = reactant_multiplier
+        return reactant_multiplier
 
     @jax.jit
     def get_rates(self, temperature, cr_rate, fuv_rate):
@@ -116,13 +118,31 @@ class Network:
     reactions: List[Reaction]
     incidence: jnp.array
     use_sparse: bool
+    vectorize_reactions: bool
 
-    def __init__(self, species, reactions, use_sparse=True):
+    def __init__(self, species, reactions, use_sparse=True, vectorize_reactions=True):
         self.species = species  # S
         self.reactions = reactions  # R
         self.use_sparse = use_sparse
+        self.vectorize_reactions = vectorize_reactions
         self.jreactions = []
+        # Sort the reactions by type if we need to vectorize them
+        if vectorize_reactions:
+            self.reactions = sorted(self.reactions, key=lambda x: x.reaction_type)
+        # Create the incidence matrix
         self.incidence = self.construct_incidence(self.species, self.reactions)  # S, R
+
+    def species_count(self):
+        """
+        Get the number of species in the network.
+        """
+        return self.incidence.shape[0]
+
+    def reaction_count(self):
+        """
+        Get the number of reactions in the network.
+        """
+        return self.incidence.shape[1]
 
     def construct_incidence(self, species, reactions):
         index = {species: idx for idx, species in enumerate(species)}
@@ -151,7 +171,7 @@ class Network:
         element_map = {species: idx for idx, species in enumerate(elements)}
         # Create an empty array to store the elemental content
         elemental_content = jnp.zeros(
-            (len(elements), len(self.species))
+            (len(elements), self.species_count())
         )  # ELEMENTS, SPECIES
         # Fill the elemental content array with the elemental content of each species
         for i, species in enumerate(self.species):
@@ -173,9 +193,27 @@ class Network:
         return elemental_content
 
     def get_ode(self):
-        self.jreactions = [reaction() for reaction in self.reactions]
+        # Always reset the jreactions
+        self.jcreations = []
+        if self.vectorize_reactions:
+            reaction_groups = {}
+            for reaction in self.reactions:
+                if reaction.reaction_type not in reaction_groups:
+                    reaction_groups[reaction.reaction_type] = []
+                reaction_groups[reaction.reaction_type].append(reaction)
+            reaction_classes = {
+                reaction.reaction_type: type(reaction) for reaction in self.reactions
+            }
+            for reaction_type, grouped_reactions in reaction_groups.items():
+                # Gather parameters for vectorization
+                params = {
+                    key: [getattr(reaction, key) for reaction in grouped_reactions]
+                    for key in vars(grouped_reactions[0])
+                }
+                # The molecularity is infered from the number of reactants
+                del params["molecularity"]
+                vectorized_reaction = reaction_classes[reaction_type](**params)
+                self.jreactions.append(vectorized_reaction())
+        else:
+            self.jreactions = [reaction() for reaction in self.reactions]
         return JNetwork(self.incidence, self.jreactions)
-
-        # convert species to JSpecies
-        # convert reactions to JReactions
-        # return JNetwork(self.species, self.reactions)

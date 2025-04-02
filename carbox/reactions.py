@@ -31,7 +31,7 @@ class Reaction:
             p for p in products if (~np.isnan(p) if isinstance(p, float) else True)
         ]
         self.reaction_type = reaction_type
-        self.molecularity = len(self.reactants)
+        self.molecularity = np.array(self.reactants).shape[-1]
 
     def __str__(self):
         return f"{self.reactants} -> {self.products}"
@@ -48,8 +48,8 @@ class Reaction:
 
 
 class KAReaction(Reaction):
-    def __init__(self, name, reactants, products, alpha, beta, gamma):
-        super().__init__(name, reactants, products)
+    def __init__(self, reaction_type, reactants, products, alpha, beta, gamma):
+        super().__init__(reaction_type, reactants, products)
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
@@ -68,7 +68,10 @@ class KAReaction(Reaction):
                     * jnp.exp(-self.gamma / temperature)
                 )
 
-        return KAReactionRateTerm(self.alpha, self.beta, self.gamma)
+        # Ensure that the parameters are JAX arrays!
+        return KAReactionRateTerm(
+            jnp.array(self.alpha), jnp.array(self.beta), jnp.array(self.gamma)
+        )
 
 
 class KAFixedReaction(Reaction):
@@ -90,12 +93,12 @@ class KAFixedReaction(Reaction):
                 # α(T/300K​)βexp(−γ/T)
                 return self.reaction_coeff
 
-        return KAFixedReactionRateTerm(self.reaction_coeff)
+        return KAFixedReactionRateTerm(jnp.array(self.reaction_coeff))
 
 
 class CRReaction(Reaction):
-    def __init__(self, name, reactants, products, alpha):
-        super().__init__(name, reactants, products)
+    def __init__(self, reaction_type, reactants, products, alpha):
+        super().__init__(reaction_type, reactants, products)
         self.alpha = alpha
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
@@ -105,12 +108,12 @@ class CRReaction(Reaction):
             def __call__(self, temperature, cr_rate, uv_field):
                 return self.alpha * cr_rate
 
-        return CRReactionRateTerm(self.alpha)
+        return CRReactionRateTerm(jnp.array(self.alpha))
 
 
 class FUVReaction(Reaction):
-    def __init__(self, name, reactants, products, alpha):
-        super().__init__(name, reactants, products)
+    def __init__(self, reaction_type, reactants, products, alpha):
+        super().__init__(reaction_type, reactants, products)
         self.alpha = alpha
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
@@ -120,12 +123,12 @@ class FUVReaction(Reaction):
             def __call__(self, temperature, cr_rate, uv_field):
                 return self.alpha * uv_field
 
-        return FUVReactionRateTerm(self.alpha)
+        return FUVReactionRateTerm(jnp.array(self.alpha))
 
 
 class H2FormReaction(Reaction):
-    def __init__(self, name, reactants, products, alpha, gas2dust):
-        super().__init__(name, reactants, products)
+    def __init__(self, reaction_type, reactants, products, alpha, gas2dust):
+        super().__init__(reaction_type, reactants, products)
         self.alpha = alpha
         self.gas2dust = gas2dust
 
@@ -137,4 +140,4 @@ class H2FormReaction(Reaction):
             def __call__(self, temperature, cr_rate, uv_field):
                 return 100.0 * self.gas2dust * self.alpha
 
-        return H2ReactionRateTerm(self.alpha, self.gas2dust)
+        return H2ReactionRateTerm(jnp.array(self.alpha), jnp.array(self.gas2dust))

@@ -229,16 +229,15 @@ if __name__ == "__main__":
     df.index = sol_t
     df.to_csv("carbox_dy_no_heating.csv")
 
-    rates = jnp.zeros((len(sol_t), len(reaction_network.reactions)))
+    rates = jnp.zeros((len(sol_t), reaction_network.reaction_count()))
     for i, (t, y) in enumerate(zip(sol_t, sol_y.T)):
-        for j, reaction in enumerate(system.reactions):
-            rates = rates.at[i, j].set(
-                reaction(
-                    simulation_parameters["t_gas_init"],
-                    simulation_parameters["cr_rate"],
-                    simulation_parameters["gnot"],
-                )
+        rates = rates.at[i].set(
+            system.get_rates(
+                simulation_parameters["t_gas_init"],
+                simulation_parameters["cr_rate"],
+                simulation_parameters["gnot"],
             )
+        )
     df = pd.DataFrame(rates)
     df.columns = [r.reaction_type for r in reaction_network.reactions]
     df.index = sol_t
