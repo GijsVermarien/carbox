@@ -60,7 +60,7 @@ class JNetwork(eqx.Module):
         return reactant_multiplier
 
     @jax.jit
-    def get_rates(self, temperature, cr_rate, fuv_rate):
+    def get_rates(self, temperature, cr_rate, fuv_rate, visual_extinction):
         """
         Get the reaction rates for the given temperature, cosmic ray ionisation rate,
         and FUV radiation field.
@@ -71,7 +71,10 @@ class JNetwork(eqx.Module):
         #     rates = rates.at[i].set(reaction(temperature, cr_rate, fuv_rate))
         # return rates
         return jnp.hstack(
-            [reaction(temperature, cr_rate, fuv_rate) for reaction in self.reactions]
+            [
+                reaction(temperature, cr_rate, fuv_rate, visual_extinction)
+                for reaction in self.reactions
+            ]
         )
 
     @jax.jit
@@ -97,10 +100,11 @@ class JNetwork(eqx.Module):
         # density: jnp.array,
         cr_rate: jnp.array,
         fuv_rate: jnp.array,
+        visual_extinction: jnp.array,
     ) -> jnp.array:
         # abundances = abundances * density
         # Calculate the reaction rates
-        rates = self.get_rates(temperature, cr_rate, fuv_rate)
+        rates = self.get_rates(temperature, cr_rate, fuv_rate, visual_extinction)
         # jax.debug.print("rates: {rates}", rates=rates)
         # Get the matrix that encodes the reactants that need to be multiplied to get the flux
         rates = self.multiply_rates_by_abundance(rates, abundances)
