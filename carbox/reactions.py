@@ -3,6 +3,8 @@ import numpy as np
 import jax.numpy as jnp
 from dataclasses import dataclass
 
+REACTION_SKIP_LIST = ["CRPHOT", "CRP", "PHOTON"]
+
 
 class JReactionRateTerm(eqx.Module):
     pass
@@ -16,6 +18,18 @@ class JReactionRateTerm(eqx.Module):
 # by into a ChemicalNetwork that has a immutable copy of both the reaction network (objects) and the terms (pytree).
 
 
+def valid_species_check(species):
+    """
+    Check if the species are valid, i.e., not in the skip list.
+    """
+    valid = False
+    if isinstance(species, float):
+        valid = ~np.isnan(species)
+    elif isinstance(species, str):
+        valid = species not in REACTION_SKIP_LIST
+    return valid
+
+
 @dataclass
 class Reaction:
     reaction_type: str
@@ -24,12 +38,8 @@ class Reaction:
     molecularity: int
 
     def __init__(self, reaction_type, reactants, products):
-        self.reactants = [
-            r for r in reactants if (~np.isnan(r) if isinstance(r, float) else True)
-        ]
-        self.products = [
-            p for p in products if (~np.isnan(p) if isinstance(p, float) else True)
-        ]
+        self.reactants = [r for r in reactants if valid_species_check(r)]
+        self.products = [p for p in products if valid_species_check(p)]
         self.reaction_type = reaction_type
         self.molecularity = np.array(self.reactants).shape[-1]
 
@@ -60,7 +70,7 @@ class KAReaction(Reaction):
             beta: float
             gamma: float
 
-            def __call__(self, temperature, cr_rate, uv_field):
+            def __call__(self, temperature, cr_rate, uv_field, visual_extinction):
                 # α(T/300K​)^βexp(−γ/T)
                 return (
                     self.alpha
@@ -89,7 +99,7 @@ class KAFixedReaction(Reaction):
         class KAFixedReactionRateTerm(JReactionRateTerm):
             reaction_coeff: float
 
-            def __call__(self, temperature, cr_rate, uv_field):
+            def __call__(self, temperature, cr_rate, uv_field, visual_extinction):
                 # α(T/300K​)βexp(−γ/T)
                 return self.reaction_coeff
 
@@ -105,7 +115,7 @@ class CRReaction(Reaction):
         class CRReactionRateTerm(JReactionRateTerm):
             alpha: float
 
-            def __call__(self, temperature, cr_rate, uv_field):
+            def __call__(self, temperature, cr_rate, uv_field, visual_extinction):
                 return self.alpha * cr_rate
 
         return CRReactionRateTerm(jnp.array(self.alpha))
@@ -120,7 +130,7 @@ class FUVReaction(Reaction):
         class FUVReactionRateTerm(JReactionRateTerm):
             alpha: float
 
-            def __call__(self, temperature, cr_rate, uv_field):
+            def __call__(self, temperature, cr_rate, uv_field, visual_extinction):
                 return self.alpha * uv_field
 
         return FUVReactionRateTerm(jnp.array(self.alpha))
@@ -137,7 +147,73 @@ class H2FormReaction(Reaction):
             alpha: float
             gas2dust: float
 
-            def __call__(self, temperature, cr_rate, uv_field):
+            def __call__(self, temperature, cr_rate, uv_field, visual_extinction):
                 return 100.0 * self.gas2dust * self.alpha
 
         return H2ReactionRateTerm(jnp.array(self.alpha), jnp.array(self.gas2dust))
+
+
+# Reactions for UMIST:
+class CPReaction(Reaction):
+    def __init__(self, reaction_type, reactants, products, alpha):
+        super().__init__(reaction_type, reactants, products)
+        self.alpha = alpha
+
+    def _reaction_rate_factory(self) -> JReactionRateTerm:
+        class CPReactionRateTerm(JReactionRateTerm):
+            alpha: float
+
+            def __call__(self, temperature, cr_rate, uv_field, visual_extinction):
+                return self.alpha
+
+        return CPReactionRateTerm(jnp.array(self.alpha))
+
+
+class PHReaction(Reaction):
+    def __init__(self, reaction_type, reactants, products, alpha, beta, gamma):
+        super().__init__(reaction_type, reactants, products)
+        self.alpha = alpha
+        self.beta = beta
+        self.gamma = gamma
+
+    def _reaction_rate_factory(self) -> JReactionRateTerm:
+        class PHReactionRateTerm(JReactionRateTerm):
+            alpha: float
+            beta: float
+            gamma: float
+
+            def __call__(self, temperature, cr_rate, uv_field, visual_extinction):
+                return self.alpha * jnp.exp(-self.gamma * visual_extinction * 4.65)
+
+        return PHReactionRateTerm(
+            jnp.array(self.alpha), jnp.array(self.beta), jnp.array(self.gamma)
+        )
+
+
+class CRPhotoReaction(Reaction):
+    def __init__(self, reaction_type, reactants, products, alpha, beta, gamma):
+        super().__init__(reaction_type, reactants, products)
+        self.alpha = alpha
+        self.beta = beta
+        self.gamma = gamma
+
+    def _reaction_rate_factory(self) -> JReactionRateTerm:
+        class CRReactionRateTerm(JReactionRateTerm):
+            alpha: float
+            beta: float
+            gamma: float
+
+            def __call__(self, temperature, cr_rate, uv_field, visual_extinction):
+                # α(T/300K​)^βexp(−γ/T)
+                return (
+                    cr_rate
+                    * jnp.power(0.0033333333333333335 * temperature, self.beta)
+                    * self.gamma
+                    / (1 - 0.5)  # hardcoded omega value
+                )
+
+        return CRReactionRateTerm(
+            jnp.array(self.alpha),
+            jnp.array(self.beta),
+            jnp.array(self.gamma),
+        )
