@@ -17,6 +17,7 @@ import jax
 jax.config.update("jax_enable_x64", True)
 
 GAS2DUST = 0.01
+GLOBAL_VISUAL_EXTINCTION = 2.0
 
 
 # FUTURE: 2 times reactant  4 times product
@@ -146,7 +147,7 @@ if __name__ == "__main__":
     def get_solution(system, y0, tend, simulation_parameters):
         print("compiling")
         return dx.diffeqsolve(
-            dx.ODETerm(lambda t, y, args: system(t, y, args[0], args[1], args[2])),
+            dx.ODETerm(lambda t, y, args: system(t, y, args[0], args[1], args[2], args[3])),
             dx.Kvaerno5(),
             y0=y0,
             t0=0.0,
@@ -161,6 +162,7 @@ if __name__ == "__main__":
                 simulation_parameters["t_gas_init"],
                 simulation_parameters["cr_rate"],
                 simulation_parameters["gnot"],
+                GLOBAL_VISUAL_EXTINCTION
             ],
             max_steps=16**3,
         )
@@ -221,6 +223,7 @@ if __name__ == "__main__":
                 simulation_parameters["t_gas_init"],
                 simulation_parameters["cr_rate"],
                 simulation_parameters["gnot"],
+                GLOBAL_VISUAL_EXTINCTION
             )
         )
 
@@ -236,6 +239,7 @@ if __name__ == "__main__":
                 simulation_parameters["t_gas_init"],
                 simulation_parameters["cr_rate"],
                 simulation_parameters["gnot"],
+                GLOBAL_VISUAL_EXTINCTION
             )
         )
     df = pd.DataFrame(rates)
@@ -246,4 +250,4 @@ if __name__ == "__main__":
     from jax import make_jaxpr
 
     with open("carbox_jaxpr.txt", "w") as f:
-        f.write(str(make_jaxpr(system)(0.0, y0, 1e1, 1e-17, 1e0)))
+        f.write(str(make_jaxpr(system)(0.0, y0, 1e1, 1e-17, 1e0, GLOBAL_VISUAL_EXTINCTION)))

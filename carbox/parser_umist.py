@@ -162,9 +162,9 @@ simulation_parameters = {
     # Radiation field
     "gnot": 0e0,  # enchance up to 1e5
     # t_gas_init
-    "t_gas_init": jnp.array(5e1),  # [1e1, 1e6],
+    "t_gas_init": jnp.array(800.0),  # [1e1, 1e6],
     # base visual extinction
-    "base_av": jnp.array(1.0),  # Base Av to account for the edge visual extinction
+    "base_av": jnp.array(0.5),  # Base Av to account for the edge visual extinction
 }
 simulation_parameters["visual_extinction"] = (
     simulation_parameters["base_av"] + 3.086e18 * simulation_parameters["ntot"]
@@ -227,8 +227,11 @@ if __name__ == "__main__":
         for idx, reac in reactions_file.iterrows()
     ]
     # Create the reaction network and get the ODE system
+    print(datetime.now(), "Creating reaction network...")
     reaction_network = Network(species, reactions)
+    print(datetime.now(), "Converting network to ODE.")
     system = reaction_network.get_ode()
+    print(datetime.now(), "Network created.")
 
     # fig, ax = plt.subplots(1, 1, figsize=(10, 5))
     # # Plot the reaction network
@@ -238,27 +241,52 @@ if __name__ == "__main__":
     # ax.set_xticklabels(reaction_network.species, rotation=90)
     # ax.set_yticklabels(reaction_network.reactions)
     # # plt.show()
+    initial_abundances = {
+        "H2": 5.00e-01,
+        "He": 0.85e-1,
+        "CO": 4.00e-04,
+        "N2": 2.00e-05,
+        "CH4": 1.75e-06,
+        "NH3": 3.00e-08,
+        "H2S": 2.00e-09,
+        "HCP": 1.25e-08,
+        "H2O": 1.275e-06,
+        "C2H2": 2.19e-05,
+        "HCN": 2.045e-05,
+        "CS": 0.53e-05,
+        "SiC2": 0.935e-05,
+        "HCl": 1.625e-07,
+        "HF": 0.85e-08,
+        "C2H4": 3.425e-08,
+        "SiO": 2.51e-06,
+        "SiS": 2.99e-06,
+        "Mg": 0.5e-08,
+        "Na": 0.5e-08,
+        "Fe": 0.5e-08,
+    }
 
-    y0 = jnp.ones(len(reaction_network.species)) * 1e-20 * simulation_parameters["ntot"]
-    # The initial molecular hydrogen abundance
-    y0 = 0.25 * y0.at[reaction_network.get_index("H2")].set(
-        simulation_parameters["ntot"]
+    y0 = jnp.ones(len(reaction_network.species)) * 1e-25 * simulation_parameters["ntot"]
+
+    for k, v in initial_abundances.items():
+        y0 = y0.at[reaction_network.get_index(k)].set(v * simulation_parameters["ntot"])
+
+    # Index all charged molecules, then sum them to obtain the number of electrons:
+    y0 = y0.at[reaction_network.get_index("e-")].set(
+        sum(
+            [
+                y0[reaction_network.get_index(s)]
+                for s in reaction_network.species
+                if s[-1] == "+"
+            ]
+        )
     )
-    y0 = 0.5 * y0.at[reaction_network.get_index("H")].set(simulation_parameters["ntot"])
-    # The intial carbon and oxygen abundances
-    y0 = y0.at[reaction_network.get_index("O")].set(
-        simulation_parameters["ntot"] * simulation_parameters["O_fraction"]
-    )
-    y0 = y0.at[reaction_network.get_index("C")].set(
-        simulation_parameters["ntot"] * simulation_parameters["C_fraction"]
-    )
-    tend = 1e6
+
+    tend = 6e4
 
     start = datetime.now()
 
     @eqx.filter_jit
     def get_solution(system, y0, tend, simulation_parameters):
-        print("compiling")
         return dx.diffeqsolve(
             dx.ODETerm(
                 lambda t, y, args: system(t, y, args[0], args[1], args[2], args[3])
@@ -266,9 +294,9 @@ if __name__ == "__main__":
             dx.Kvaerno5(),
             y0=y0,
             t0=0.0,
-            t1=spy * tend,
+            t1=spy * tend + 1e11,
             dt0=1e-6,
-            saveat=dx.SaveAt(ts=spy * jnp.logspace(-5, np.log10(tend), 1000)),
+            saveat=dx.SaveAt(ts=spy * jnp.logspace(-1, np.log10(tend), 100)),
             stepsize_controller=dx.PIDController(
                 atol=1e-18,
                 rtol=1e-12,
@@ -283,14 +311,11 @@ if __name__ == "__main__":
             throw=False,
         )
 
-    print("Compilation time: ", datetime.now() - start)
-
-    start = datetime.now()
-    get_solution(system, y0, tend, simulation_parameters)
+    solution = get_solution(system, y0, tend, simulation_parameters)
     print("Compilation + run time: ", datetime.now() - start)
 
-    samples = 2
-    # with jax.profiler.trace("/tmp/carbox", create_perfetto_trace=True):
+    samples = 1
+    # # with jax.profiler.trace("/tmp/carbox", create_perfetto_trace=True):
     start = datetime.now()
     for i in range(samples):
         solution = get_solution(system, y0, tend, simulation_parameters)
@@ -322,7 +347,7 @@ if __name__ == "__main__":
             solution.ys[:, i],
             label=lab,
             color=colors[i % len(colors)],
-            ls=lss[i // len(colors)],
+            # ls=lss[i // len(colors)],
         )
 
     # plt.loglog(solution.ts / spy, solution.ys[:, -1], label="Tgas", color="k")
@@ -333,6 +358,8 @@ if __name__ == "__main__":
     conservation.columns = ["C", "H", "O", "charge"]
     conservation.plot(loglog=True, ax=ax[1])
 
+    fig.savefig("test_umist.png", dpi=300)
+    
     # Reevaluate the function evaluations
     dy = jnp.zeros_like(sol_y)
     for i, (t, y) in enumerate(zip(sol_t, sol_y.T)):
