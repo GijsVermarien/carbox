@@ -1,7 +1,7 @@
 from typing import List
 
-from reactions import JReactionRateTerm, Reaction
-from species import Species
+from .reactions import JReactionRateTerm, Reaction
+from .species import Species
 from dataclasses import dataclass
 import jax.numpy as jnp
 from jax.experimental import sparse
@@ -149,7 +149,7 @@ class Network:
         return self.incidence.shape[1]
 
     def construct_incidence(self, species, reactions):
-        index = {species: idx for idx, species in enumerate(species)}
+        index = {sp.name: idx for idx, sp in enumerate(species)}
         incidence = jnp.zeros((len(species), len(reactions)), dtype=jnp.int16)  # S, R
         # Fill the incidence matrix with all terms:
         for j, reaction in enumerate(reactions):

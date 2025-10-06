@@ -1,0 +1,4 @@
+Reactant 1,Reactant 2,Reactant 3,Product 1,Product 2,Product 3,Product 4,Alpha,Beta,Gamma,T_min,T_max,reduced_mass,extrapolate
+CN,CRPHOT,NAN,N,C,NAN,NAN,1.3e-17,0.0,225.0,10.0,41000.0,0.0,False
+C2H,PHOTON,NAN,C2H+,E-,NAN,NAN,1e-11,0.0,2.0,10.0,41000.0,0.0,False
+C,NH2,NAN,HNC,H,NAN,NAN,3.26e-11,-0.1,-9.0,10.0,300.0,0.0,False

@@ -217,3 +217,74 @@ class CRPhotoReaction(Reaction):
             jnp.array(self.beta),
             jnp.array(self.gamma),
         )
+
+
+# UCLCHEM-specific reaction types
+class IonPol1Reaction(Reaction):
+    """UCLCHEM IONOPOL1: Ion-polar molecule reaction (KIDA formula 1)
+    k = α * β * (0.62 + 0.4767 * γ * sqrt(300/T))
+    """
+    def __init__(self, reaction_type, reactants, products, alpha, beta, gamma):
+        super().__init__(reaction_type, reactants, products)
+        self.alpha = alpha
+        self.beta = beta 
+        self.gamma = gamma
+    
+    def _reaction_rate_factory(self) -> JReactionRateTerm:
+        class IonPol1RateTerm(JReactionRateTerm):
+            alpha: float
+            beta: float
+            gamma: float
+            
+            def __call__(self, temperature, cr_rate, uv_field, visual_extinction):
+                return self.alpha * self.beta * (0.62 + 0.4767 * self.gamma * jnp.sqrt(300.0 / temperature))
+                
+        return IonPol1RateTerm(jnp.array(self.alpha), jnp.array(self.beta), jnp.array(self.gamma))
+
+
+class IonPol2Reaction(Reaction):
+    """UCLCHEM IONOPOL2: Ion-polar molecule reaction (KIDA formula 2)
+    k = α * β * (1.0 + 0.0967 * γ * sqrt(300/T) + γ² * 300/(10.526 * T))
+    """
+    def __init__(self, reaction_type, reactants, products, alpha, beta, gamma):
+        super().__init__(reaction_type, reactants, products)
+        self.alpha = alpha
+        self.beta = beta
+        self.gamma = gamma
+    
+    def _reaction_rate_factory(self) -> JReactionRateTerm:
+        class IonPol2RateTerm(JReactionRateTerm):
+            alpha: float
+            beta: float 
+            gamma: float
+            
+            def __call__(self, temperature, cr_rate, uv_field, visual_extinction):
+                sqrt_term = 0.0967 * self.gamma * jnp.sqrt(300.0 / temperature)
+                quadratic_term = self.gamma**2 * 300.0 / (10.526 * temperature)
+                return self.alpha * self.beta * (1.0 + sqrt_term + quadratic_term)
+                
+        return IonPol2RateTerm(jnp.array(self.alpha), jnp.array(self.beta), jnp.array(self.gamma))
+
+
+class GARReaction(Reaction):
+    """UCLCHEM GAR: Grain-assisted recombination (Weingartner & Draine 2001)
+    Simplified implementation for gas-phase comparison
+    """
+    def __init__(self, reaction_type, reactants, products, alpha, beta, gamma):
+        super().__init__(reaction_type, reactants, products)
+        self.alpha = alpha
+        self.beta = beta
+        self.gamma = gamma
+    
+    def _reaction_rate_factory(self) -> JReactionRateTerm:
+        class GARRateTerm(JReactionRateTerm):
+            alpha: float
+            beta: float
+            gamma: float
+            
+            def __call__(self, temperature, cr_rate, uv_field, visual_extinction):
+                # Simplified implementation - treat as standard Arrhenius for gas-phase comparison
+                # Full GAR formula requires grain parameters not available in gas-phase mode
+                return self.alpha * jnp.power(temperature / 300.0, self.beta) * jnp.exp(-self.gamma / temperature)
+                
+        return GARRateTerm(jnp.array(self.alpha), jnp.array(self.beta), jnp.array(self.gamma))
