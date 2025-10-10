@@ -1,0 +1,3 @@
+[submodule "uclchem"]
+	path = uclchem
+	url = ./uclchem
