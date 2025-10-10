@@ -1,9 +1,8 @@
+import equinox as eqx
+import jax
+import jax.numpy as jnp
 import numpy as np
 from chem_commons import *
-import jax.numpy as jnp
-import jax
-
-import equinox as eqx
 
 
 @eqx.filter_jit
@@ -19,7 +18,7 @@ def get_heating(x, tgas, cr_rate, gnot):
 
 @eqx.filter_jit
 def get_photoelectric_heating(x, tgas, gnot):
-    ntot = np.sum(x)
+    number_density = np.sum(x)
     bet = 0.735e0 * tgas ** (-0.068)
 
     psi = gnot * jnp.sqrt(tgas) / (x[idx_E] + 1e-20)
@@ -34,4 +33,4 @@ def get_photoelectric_heating(x, tgas, gnot):
     )
 
     # net photoelectric heating
-    return (1.3e-24 * eps * gnot * ntot - recomb_cool) * dust2gas
+    return (1.3e-24 * eps * gnot * number_density - recomb_cool) * dust2gas

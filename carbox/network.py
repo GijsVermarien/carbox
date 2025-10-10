@@ -1,14 +1,14 @@
+from dataclasses import dataclass
+from functools import partial
 from typing import List
+
+import equinox as eqx
+import jax
+import jax.numpy as jnp
+from jax.experimental import sparse
 
 from .reactions import JReactionRateTerm, Reaction
 from .species import Species
-from dataclasses import dataclass
-import jax.numpy as jnp
-from jax.experimental import sparse
-import jax
-import equinox as eqx
-
-from functools import partial
 
 
 class JNetwork(eqx.Module):
@@ -60,10 +60,10 @@ class JNetwork(eqx.Module):
         return reactant_multiplier
 
     @jax.jit
-    def get_rates(self, temperature, cr_rate, fuv_rate, visual_extinction):
+    def get_rates(self, temperature, cr_rate, fuv_rate, visual_extinction, abundances):
         """
         Get the reaction rates for the given temperature, cosmic ray ionisation rate,
-        and FUV radiation field.
+        FUV radiation field, and abundance vector.
         """
         # TODO: optimization: The most Jax way to do optimize would be to create one class with all the reactions of one type and all their constants.
         # rates = jnp.empty(len(self.reactions))
@@ -72,7 +72,7 @@ class JNetwork(eqx.Module):
         # return rates
         return jnp.hstack(
             [
-                reaction(temperature, cr_rate, fuv_rate, visual_extinction)
+                reaction(temperature, cr_rate, fuv_rate, visual_extinction, abundances)
                 for reaction in self.reactions
             ]
         )
@@ -103,8 +103,10 @@ class JNetwork(eqx.Module):
         visual_extinction: jnp.array,
     ) -> jnp.array:
         # abundances = abundances * density
-        # Calculate the reaction rates
-        rates = self.get_rates(temperature, cr_rate, fuv_rate, visual_extinction)
+        # Calculate the reaction rates (pass abundances for self-shielding reactions)
+        rates = self.get_rates(
+            temperature, cr_rate, fuv_rate, visual_extinction, abundances
+        )
         # jax.debug.print("rates: {rates}", rates=rates)
         # Get the matrix that encodes the reactants that need to be multiplied to get the flux
         rates = self.multiply_rates_by_abundance(rates, abundances)
@@ -130,11 +132,9 @@ class Network:
         self.use_sparse = use_sparse
         self.vectorize_reactions = vectorize_reactions
         self.jreactions = []
-        # Sort the reactions by type if we need to vectorize them
-        if vectorize_reactions:
-            self.reactions = sorted(self.reactions, key=lambda x: x.reaction_type)
-        # Create the incidence matrix
-        self.incidence = self.construct_incidence(self.species, self.reactions)  # S, R
+
+        # Create the incidence matrix (S species, R reactions)
+        self.incidence = self.construct_incidence(self.species, self.reactions)
 
     def species_count(self):
         """
@@ -172,23 +172,24 @@ class Network:
         Get the elemental contents of the species in the network.
         """
         # Create a dictionary to map species to their elemental content
-        element_map = {species: idx for idx, species in enumerate(elements)}
+        element_map = {element: idx for idx, element in enumerate(elements)}
         # Create an empty array to store the elemental content
         elemental_content = jnp.zeros(
             (len(elements), self.species_count())
         )  # ELEMENTS, SPECIES
         # Fill the elemental content array with the elemental content of each species
-        for i, species in enumerate(self.species):
+        for i, species_obj in enumerate(self.species):
+            species_name = species_obj.name
             for element in elements:
-                if element in species:
+                if element in species_name:
                     # acount for number of atoms in the species
-                    species_string_index = species.index(element)
+                    species_string_index = species_name.index(element)
                     # Get the number of atoms of the element in the species
                     if (
-                        species_string_index + 1 < len(species)
-                        and species[species_string_index + 1].isdigit()
+                        species_string_index + 1 < len(species_name)
+                        and species_name[species_string_index + 1].isdigit()
                     ):
-                        number_of_atoms = int(species[species_string_index + 1])
+                        number_of_atoms = int(species_name[species_string_index + 1])
                     else:
                         number_of_atoms = 1
                     elemental_content = elemental_content.at[
@@ -196,18 +197,98 @@ class Network:
                     ].set(number_of_atoms)
         return elemental_content
 
+    def to_networkx(self):
+        """
+        Convert the reaction network to a NetworkX directed graph.
+
+        Returns:
+            networkx.DiGraph: A directed graph where:
+                - Nodes represent chemical species
+                - Edges represent reactions (reactant -> product)
+                - Edge attributes include reaction index and reaction object
+        """
+        import networkx as nx
+
+        # Create a directed graph
+        G = nx.DiGraph()
+
+        # Add all species as nodes
+        for species in self.species:
+            G.add_node(species.name, species=species)
+
+        # Process each reaction (column in incidence matrix)
+        for j, reaction in enumerate(self.reactions):
+            # Get reactants and products for this reaction
+            reactants = reaction.reactants
+            products = reaction.products
+
+            # Create reaction label
+            reactants_str = " + ".join(reactants)
+            products_str = " + ".join(products)
+            reaction_label = f"{reactants_str} -> {products_str}"
+
+            # Add edges from each reactant to each product
+            for reactant in reactants:
+                for product in products:
+                    # Check if edge already exists
+                    if G.has_edge(reactant, product):
+                        # Append to existing reactions list
+                        G[reactant][product]["reactions"].append(
+                            {"index": j, "reaction": reaction, "label": reaction_label}
+                        )
+                    else:
+                        # Create new edge with reactions list
+                        G.add_edge(
+                            reactant,
+                            product,
+                            reactions=[
+                                {
+                                    "index": j,
+                                    "reaction": reaction,
+                                    "label": reaction_label,
+                                }
+                            ],
+                        )
+
+        return G
+
     def get_ode(self):
         # Always reset the jreactions
         self.jcreations = []
+
+        # Import special reaction types that should not be vectorized
+        from .reactions import (
+            CIonizationReaction,
+            COPhotoDissReaction,
+            H2PhotoDissReaction,
+        )
+
+        # Types that should not be vectorized due to unique parameters
+        non_vectorizable_types = (
+            H2PhotoDissReaction,
+            COPhotoDissReaction,
+            CIonizationReaction,
+        )
+
         if self.vectorize_reactions:
             reaction_groups = {}
+            non_vectorizable_reactions = []
+
             for reaction in self.reactions:
-                if reaction.reaction_type not in reaction_groups:
-                    reaction_groups[reaction.reaction_type] = []
-                reaction_groups[reaction.reaction_type].append(reaction)
+                # Skip vectorization for special photoreactions
+                if isinstance(reaction, non_vectorizable_types):
+                    non_vectorizable_reactions.append(reaction)
+                else:
+                    if reaction.reaction_type not in reaction_groups:
+                        reaction_groups[reaction.reaction_type] = []
+                    reaction_groups[reaction.reaction_type].append(reaction)
+
             reaction_classes = {
-                reaction.reaction_type: type(reaction) for reaction in self.reactions
+                reaction.reaction_type: type(reaction)
+                for reaction in self.reactions
+                if not isinstance(reaction, non_vectorizable_types)
             }
+
             for reaction_type, grouped_reactions in reaction_groups.items():
                 # Gather parameters for vectorization
                 params = {
@@ -218,6 +299,10 @@ class Network:
                 del params["molecularity"]
                 vectorized_reaction = reaction_classes[reaction_type](**params)
                 self.jreactions.append(vectorized_reaction())
+
+            # Add non-vectorizable reactions individually
+            for reaction in non_vectorizable_reactions:
+                self.jreactions.append(reaction())
         else:
             self.jreactions = [reaction() for reaction in self.reactions]
         return JNetwork(self.incidence, self.jreactions)

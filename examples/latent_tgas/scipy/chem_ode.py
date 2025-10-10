@@ -15,11 +15,11 @@ def fex(t, y, cr_rate, gnot):
 
     gamma_ad = 1.4
 
-    ntot = np.sum(y[:nspecies])
+    number_density = np.sum(y[:nspecies])
     cool = get_cooling(y[:nspecies], tgas)
     heat = get_heating(y[:nspecies], tgas, cr_rate, gnot)
 
-    # dy[idx_tgas] = (gamma_ad - 1e0) * (heat - cool) / kboltzmann / ntot
+    # dy[idx_tgas] = (gamma_ad - 1e0) * (heat - cool) / kboltzmann / number_density
     # Disable heating and cooling:
     dy[idx_tgas] = 0.0
 

@@ -1,14 +1,13 @@
+from functools import partial
+
 import equinox as eqx
+import jax
+import jax.numpy as jnp
 import numpy as np
 from chem_commons import *
 from chem_cooling import get_cooling
 from chem_heating import get_heating
 from chem_rates import get_rates
-
-import jax
-import jax.numpy as jnp
-
-from functools import partial
 
 
 @eqx.filter_jit
@@ -25,11 +24,11 @@ def fex(t, y, cr_rate=1e-17, gnot=1e0):
     flux = [None] * nreactions
 
     gamma_ad = 1.4
-    ntot = jnp.sum(y[:nspecies])
+    number_density = jnp.sum(y[:nspecies])
     cool = get_cooling(y[:nspecies], tgas)
     heat = get_heating(y[:nspecies], tgas, cr_rate, gnot)
 
-    # dy[idx_tgas] = (gamma_ad - 1e0) * (heat - cool) / kboltzmann / ntot
+    # dy[idx_tgas] = (gamma_ad - 1e0) * (heat - cool) / kboltzmann / number_density
     # Disable heating and cooling:
     dy[idx_tgas] = 0.0
 

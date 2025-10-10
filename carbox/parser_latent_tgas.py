@@ -1,18 +1,15 @@
 from datetime import datetime
-import pandas as pd
-import numpy as np
-
-from network import Network
-from constants import elemental_dict
-from reactions import KAReaction, CRReaction, FUVReaction, H2FormReaction
-import matplotlib.pyplot as plt
-
 
 import diffrax as dx
 import equinox as eqx
-
-import jax.numpy as jnp
 import jax
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from constants import elemental_dict
+from network import Network
+from reactions import CRPReaction, FUVReaction, H2FormReaction, KAReaction
 
 jax.config.update("jax_enable_x64", True)
 
@@ -25,7 +22,7 @@ reaction_by_shorthand_name = {
     "KA": lambda r1, r2, p1, p2, a, b, c, rtype: KAReaction(
         rtype, (r1, r2), (p1, p2), float(a), float(b), float(c)
     ),
-    "CR": lambda r1, r2, p1, p2, a, b, c, rtype: CRReaction(
+    "CR": lambda r1, r2, p1, p2, a, b, c, rtype: CRPReaction(
         rtype, (r1, r2), (p1, p2), float(a)
     ),
     "FUV": lambda r1, r2, p1, p2, a, b, c, rtype: FUVReaction(
@@ -81,7 +78,7 @@ def parse_weights(molecules):
 
 simulation_parameters = {
     # Hydrogen number density
-    "ntot": 1e4,  # [1e2 - 1e6]
+    "number_density": 1e4,  # [1e2 - 1e6]
     # Fractional abunadnce of oxygen
     "O_fraction": 2e-4,  # [1e-5, 1e-3]
     # Fractional abundance of carbon
@@ -130,15 +127,21 @@ if __name__ == "__main__":
     # ax.set_yticklabels(reaction_network.reactions)
     # # plt.show()
 
-    y0 = jnp.ones(len(reaction_network.species)) * 1e-20 * simulation_parameters["ntot"]
+    y0 = (
+        jnp.ones(len(reaction_network.species))
+        * 1e-20
+        * simulation_parameters["number_density"]
+    )
     # The initial molecular hydrogen abundance
-    y0 = y0.at[reaction_network.get_index("H2")].set(simulation_parameters["ntot"])
+    y0 = y0.at[reaction_network.get_index("H2")].set(
+        simulation_parameters["number_density"]
+    )
     # The intial carbon and oxygen abundances
     y0 = y0.at[reaction_network.get_index("O")].set(
-        simulation_parameters["ntot"] * simulation_parameters["O_fraction"]
+        simulation_parameters["number_density"] * simulation_parameters["O_fraction"]
     )
     y0 = y0.at[reaction_network.get_index("C")].set(
-        simulation_parameters["ntot"] * simulation_parameters["C_fraction"]
+        simulation_parameters["number_density"] * simulation_parameters["C_fraction"]
     )
 
     tend = 1e6
@@ -147,7 +150,9 @@ if __name__ == "__main__":
     def get_solution(system, y0, tend, simulation_parameters):
         print("compiling")
         return dx.diffeqsolve(
-            dx.ODETerm(lambda t, y, args: system(t, y, args[0], args[1], args[2], args[3])),
+            dx.ODETerm(
+                lambda t, y, args: system(t, y, args[0], args[1], args[2], args[3])
+            ),
             dx.Kvaerno5(),
             y0=y0,
             t0=0.0,
@@ -162,7 +167,7 @@ if __name__ == "__main__":
                 simulation_parameters["t_gas_init"],
                 simulation_parameters["cr_rate"],
                 simulation_parameters["gnot"],
-                GLOBAL_VISUAL_EXTINCTION
+                GLOBAL_VISUAL_EXTINCTION,
             ],
             max_steps=16**3,
         )
@@ -223,7 +228,7 @@ if __name__ == "__main__":
                 simulation_parameters["t_gas_init"],
                 simulation_parameters["cr_rate"],
                 simulation_parameters["gnot"],
-                GLOBAL_VISUAL_EXTINCTION
+                GLOBAL_VISUAL_EXTINCTION,
             )
         )
 
@@ -239,7 +244,7 @@ if __name__ == "__main__":
                 simulation_parameters["t_gas_init"],
                 simulation_parameters["cr_rate"],
                 simulation_parameters["gnot"],
-                GLOBAL_VISUAL_EXTINCTION
+                GLOBAL_VISUAL_EXTINCTION,
             )
         )
     df = pd.DataFrame(rates)
@@ -250,4 +255,6 @@ if __name__ == "__main__":
     from jax import make_jaxpr
 
     with open("carbox_jaxpr.txt", "w") as f:
-        f.write(str(make_jaxpr(system)(0.0, y0, 1e1, 1e-17, 1e0, GLOBAL_VISUAL_EXTINCTION)))
+        f.write(
+            str(make_jaxpr(system)(0.0, y0, 1e1, 1e-17, 1e0, GLOBAL_VISUAL_EXTINCTION))
+        )

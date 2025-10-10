@@ -1,0 +1,60 @@
+# Network definitions for benchmarking
+# Maps network names to their source files and metadata
+
+networks:
+  small_chemistry:
+    name: "Small Chemistry Network"
+    description: "Minimal viable network for testing (~20 species)"
+    
+    # UCLCHEM network generation
+    uclchem_makerates_config: "data/small_chemistry/user_settings.yaml"
+    uclchem_rebuild_required: true
+    
+    # Carbox input (will be generated from UCLCHEM)
+    carbox_input: "data/uclchem_small_chemistry.csv"
+    carbox_format: "uclchem"
+    
+    # Expected network size
+    expected_species: 20
+    expected_reactions: 100
+    
+    # Enable for testing
+    enabled: true
+    
+  gas_phase_only:
+    name: "Gas-Phase Only Network"
+    description: "Full gas-phase chemistry (165 species) + minimal ice"
+    
+    # UCLCHEM network generation
+    uclchem_makerates_config: "data/gas_phase_only/user_settings.yaml"
+    uclchem_rebuild_required: true
+    
+    # Carbox input
+    carbox_input: "data/uclchem_gas_phase_only.csv"
+    carbox_format: "uclchem"
+    
+    # Expected network size
+    expected_species: 183
+    expected_reactions: 3000
+    
+    # Enable for testing
+    enabled: true
+    
+  full_umist22:
+    name: "Full UMIST22 Database"
+    description: "Complete UMIST 2022 reaction database"
+    
+    # UCLCHEM network generation
+    uclchem_makerates_config: "data/full_umist22/user_settings.yaml"
+    uclchem_rebuild_required: true
+    
+    # Carbox can use UMIST directly
+    carbox_input: "data/umist22.csv"
+    carbox_format: "umist"
+    
+    # Expected network size
+    expected_species: 500
+    expected_reactions: 6000
+    
+    # Enable when ready
+    enabled: false  # Set to true once UMIST22 UCLCHEM setup is created

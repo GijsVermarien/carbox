@@ -1,17 +1,16 @@
 from datetime import datetime
+
 import matplotlib.pyplot as plt
 import numpy as np
 from chem_commons import idx_C, idx_H2, idx_O, names, nspecies
 from chem_ode import fex
-from tqdm import tqdm
-
-from scipy.integrate import solve_ivp
-
 from chem_rates import get_rates, reaction_strings
+from scipy.integrate import solve_ivp
+from tqdm import tqdm
 
 simulation_parameters = {
     # Hydrogen number density
-    "ntot": 1e4,  # [1e2 - 1e6]
+    "number_density": 1e4,  # [1e2 - 1e6]
     # Fractional abunadnce of oxygen
     "O_fraction": 2e-4,  # [1e-5, 1e-3]
     # Fractional abundance of carbon
@@ -28,14 +27,14 @@ simulation_parameters = {
 spy = 3600.0 * 24 * 365.0
 
 # Initialize all species at the numerical minimum of 10^-20
-y0 = np.zeros(nspecies + 1) + 1e-20 * simulation_parameters["ntot"]
+y0 = np.zeros(nspecies + 1) + 1e-20 * simulation_parameters["number_density"]
 # Gas temperature
 y0[-1] = simulation_parameters["t_gas_init"]
 # The initial molecular hydrogen abundance
-y0[idx_H2] = simulation_parameters["ntot"]
+y0[idx_H2] = simulation_parameters["number_density"]
 # The intial carbon and oxygen abundances
-y0[idx_O] = simulation_parameters["ntot"] * simulation_parameters["O_fraction"]
-y0[idx_C] = simulation_parameters["ntot"] * simulation_parameters["C_fraction"]
+y0[idx_O] = simulation_parameters["number_density"] * simulation_parameters["O_fraction"]
+y0[idx_C] = simulation_parameters["number_density"] * simulation_parameters["C_fraction"]
 
 # Cosmic ray ionisation rate and radiation field
 

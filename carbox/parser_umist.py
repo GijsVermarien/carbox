@@ -1,23 +1,20 @@
 from datetime import datetime
-import pandas as pd
-import numpy as np
 
-from network import Network
+import diffrax as dx
+import equinox as eqx
+import jax
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from constants import elemental_dict
+from network import Network
 from reactions import (
     CPReaction,
     CRPhotoReaction,
     KAReaction,
     PHReaction,
 )
-import matplotlib.pyplot as plt
-
-
-import diffrax as dx
-import equinox as eqx
-
-import jax.numpy as jnp
-import jax
 
 jax.config.update("jax_enable_x64", True)
 
@@ -152,7 +149,7 @@ def parse_weights(molecules):
 
 simulation_parameters = {
     # Hydrogen number density
-    "ntot": 1e4,  # [1e2 - 1e6]
+    "number_density": 1e4,  # [1e2 - 1e6]
     # Fractional abunadnce of oxygen
     "O_fraction": 2e-4,  # [1e-5, 1e-3]
     # Fractional abundance of carbon
@@ -167,7 +164,8 @@ simulation_parameters = {
     "base_av": jnp.array(0.5),  # Base Av to account for the edge visual extinction
 }
 simulation_parameters["visual_extinction"] = (
-    simulation_parameters["base_av"] + 3.086e18 * simulation_parameters["ntot"]
+    simulation_parameters["base_av"]
+    + 3.086e18 * simulation_parameters["number_density"]
 ) / 1.6e21
 
 spy = 3600.0 * 24 * 365.0
@@ -265,10 +263,16 @@ if __name__ == "__main__":
         "Fe": 0.5e-08,
     }
 
-    y0 = jnp.ones(len(reaction_network.species)) * 1e-25 * simulation_parameters["ntot"]
+    y0 = (
+        jnp.ones(len(reaction_network.species))
+        * 1e-25
+        * simulation_parameters["number_density"]
+    )
 
     for k, v in initial_abundances.items():
-        y0 = y0.at[reaction_network.get_index(k)].set(v * simulation_parameters["ntot"])
+        y0 = y0.at[reaction_network.get_index(k)].set(
+            v * simulation_parameters["number_density"]
+        )
 
     # Index all charged molecules, then sum them to obtain the number of electrons:
     y0 = y0.at[reaction_network.get_index("e-")].set(
@@ -359,7 +363,7 @@ if __name__ == "__main__":
     conservation.plot(loglog=True, ax=ax[1])
 
     fig.savefig("test_umist.png", dpi=300)
-    
+
     # Reevaluate the function evaluations
     dy = jnp.zeros_like(sol_y)
     for i, (t, y) in enumerate(zip(sol_t, sol_y.T)):

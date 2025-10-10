@@ -14,7 +14,7 @@ def get_heating(x, tgas, cr_rate, gnot):
 
 
 def get_photoelectric_heating(x, tgas, gnot):
-    ntot = np.sum(x)
+    number_density = np.sum(x)
     bet = 0.735e0 * tgas ** (-0.068)
 
     if x[idx_E] > 0e0:
@@ -30,4 +30,4 @@ def get_photoelectric_heating(x, tgas, gnot):
     )
 
     # net photoelectric heating
-    return (1.3e-24 * eps * gnot * ntot - recomb_cool) * dust2gas
+    return (1.3e-24 * eps * gnot * number_density - recomb_cool) * dust2gas

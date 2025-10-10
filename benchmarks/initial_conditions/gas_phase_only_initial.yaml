@@ -1,0 +1,19 @@
+network: gas_phase_only
+description: Initial abundances from UCLCHEM for gas_phase_only
+abundances:
+  H: 0.5
+  H2: 0.25
+  HE: 0.1000000014901161
+  O: 0.000334
+  E-: 0.0001823239
+  C+: 0.000177
+  N: 6.18e-05
+  S+: 3.51e-06
+  MG: 2.256e-06
+  SI+: 1.78e-06
+  CL+: 3.39e-08
+  C: 1.0e-10
+metadata:
+  n_species: 12
+  total_abundance: 0.8507627053901161
+  units: fractional (relative to H nuclei density)

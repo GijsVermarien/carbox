@@ -6,16 +6,18 @@ Tests UCLCHEM, UMIST, and LATENT-TGAS parsers following the
 unified_parser_demo.py approach.
 """
 
-import pytest
 import os
-from pathlib import Path
 
 # Add project root to path
 import sys
+from pathlib import Path
+
+import pytest
+
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from carbox.parsers import parse_chemical_network, UnifiedChemicalParser
+from carbox.parsers import UnifiedChemicalParser, parse_chemical_network
 
 
 class TestUnifiedParsers:
@@ -68,7 +70,7 @@ class TestUnifiedParsers:
         
         # Check reaction types
         reaction_types = [r.__class__.__name__ for r in network.reactions[:5]]
-        assert all(rt == 'CRReaction' for rt in reaction_types), f"Unexpected reaction types: {reaction_types}"
+        assert all(rt == 'CRPReaction' for rt in reaction_types), f"Unexpected reaction types: {reaction_types}"
     
     def test_umist_parser(self, test_files):
         """Test UMIST parser exactly like unified_parser_demo.py"""
@@ -122,7 +124,7 @@ class TestUnifiedParsers:
         
         # Check reaction types
         reaction_types = [r.__class__.__name__ for r in network.reactions[:5]]
-        expected_types = ['CRReaction', 'CRReaction', 'CRReaction', 'CRReaction', 'FUVReaction']
+        expected_types = ['CRPReaction', 'CRPReaction', 'CRPReaction', 'CRPReaction', 'FUVReaction']
         assert reaction_types == expected_types, f"Reaction type mismatch: {reaction_types}"
     
     def test_auto_detection(self, test_files):
