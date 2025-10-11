@@ -269,13 +269,6 @@ def c_ionization_rate(
 
 
 @partial(jax.jit, static_argnums=())
-def compute_visual_extinction(radius_pc: float, x_h: float) -> float:
-    """Visual extinction: A_V = (R_out × n_H) / (1.8 × 10^21)."""
-    radius_cm = radius_pc * PARSEC_TO_CM
-    return (radius_cm * x_h) / 1.8e21
-
-
-@partial(jax.jit, static_argnums=())
 def compute_column_density(absolute_density: float, radius_pc: float) -> float:
     """Column density: N = absolute_density × radius [cm^-2].
 

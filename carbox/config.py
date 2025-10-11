@@ -75,11 +75,13 @@ class SimulationConfig:
     temperature: float = 50.0
     cr_rate: float = 1e-17
     fuv_field: float = 1.0
-    visual_extinction: float = 2.0
+    visual_extinction: float = 2.0  # Can be overridden by self-consistent calculation
     gas_to_dust_ratio: float = 100.0
 
-    # Cloud geometry (for photoreaction shielding)
+    # Cloud geometry (for photoreaction shielding and self-consistent Av)
     cloud_radius_pc: float = 1.0  # Cloud radius in parsecs
+    base_av: float = 0.0  # Base Av before column density contribution
+    use_self_consistent_av: bool = False  # Compute Av from column density
 
     # Initial abundances (fractional relative to number_density)
     initial_abundances: Dict[str, float] = field(
@@ -131,13 +133,43 @@ class SimulationConfig:
         with open(filepath, "w") as f:
             json.dump(self.__dict__, f, indent=2)
 
+    def compute_visual_extinction(self) -> float:
+        """
+        Compute self-consistent visual extinction from column density.
+        
+        Formula: Av = base_Av + N_H / 1.6e21
+        where N_H = cloud_radius_pc * number_density (converted to cm)
+        
+        Returns
+        -------
+        float
+            Visual extinction [mag]
+        """
+        if not self.use_self_consistent_av:
+            return self.visual_extinction
+        
+        # Convert parsec to cm: 1 pc = 3.086e18 cm
+        PC_TO_CM = 3.086e18
+        cloud_radius_cm = self.cloud_radius_pc * PC_TO_CM
+        
+        # Column density: N_H = n_H * L [cm^-2]
+        column_density = cloud_radius_cm * self.number_density
+        
+        # Av = base_Av + N_H / 1.6e21
+        av = self.base_av + column_density / 1.6e21
+        
+        return av
+
     def get_physical_params_jax(self):
         """Get JAX arrays for physical parameters (for solver args)."""
+        # Compute Av (either fixed or self-consistent)
+        visual_extinction = self.compute_visual_extinction()
+        
         return {
             "temperature": jnp.array(self.temperature),
             "cr_rate": jnp.array(self.cr_rate),
             "fuv_field": jnp.array(self.fuv_field),
-            "visual_extinction": jnp.array(self.visual_extinction),
+            "visual_extinction": jnp.array(visual_extinction),
         }
 
     def validate(self):

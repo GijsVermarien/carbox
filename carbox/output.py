@@ -80,7 +80,7 @@ def save_abundances(
             h2_idx = i
         elif name == "H":
             h_idx = i
-
+    """
     if h2_idx is not None and h_idx is not None:
         n_h_nuclei = 2 * solution.ys[:, h2_idx] + solution.ys[:, h_idx]
     elif h2_idx is not None:
@@ -89,7 +89,8 @@ def save_abundances(
         n_h_nuclei = solution.ys[:, h_idx]
     else:
         # Fallback to total density if no H or H2
-        n_h_nuclei = config.number_density
+    """
+    n_h_nuclei = config.number_density
 
     # Create DataFrame with time and physical parameter columns
     df = pd.DataFrame(
@@ -100,7 +101,7 @@ def save_abundances(
             "temperature": config.temperature,
             "cr_rate": config.cr_rate,
             "fuv_field": config.fuv_field,
-            "visual_extinction": config.visual_extinction,
+            "visual_extinction": config.compute_visual_extinction(),
         }
     )
 
@@ -153,7 +154,7 @@ def save_derivatives(
             "temperature": config.temperature,
             "cr_rate": config.cr_rate,
             "fuv_field": config.fuv_field,
-            "visual_extinction": config.visual_extinction,
+            "visual_extinction": config.compute_visual_extinction(),
         }
     )
 
@@ -268,7 +269,11 @@ def save_metadata(
                 "temperature": config.temperature,
                 "cr_rate": config.cr_rate,
                 "fuv_field": config.fuv_field,
-                "visual_extinction": config.visual_extinction,
+                "visual_extinction": config.compute_visual_extinction(),
+                "visual_extinction_config": config.visual_extinction,
+                "use_self_consistent_av": config.use_self_consistent_av,
+                "cloud_radius_pc": config.cloud_radius_pc,
+                "base_av": config.base_av,
             },
             "integration": {
                 "t_start": config.t_start,

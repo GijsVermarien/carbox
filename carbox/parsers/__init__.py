@@ -6,13 +6,13 @@ from .latent_tgas_parser import LatentTGASParser
 from .unified_parser import UnifiedChemicalParser, parse_chemical_network
 
 __all__ = [
-    'BaseParser',
-    'UCLCHEMParser',
-    'UMISTParser', 
-    'LatentTGASParser',
-    'UnifiedChemicalParser',
-    'parse_chemical_network'
+    "BaseParser",
+    "UCLCHEMParser",
+    "UMISTParser",
+    "LatentTGASParser",
+    "UnifiedChemicalParser",
+    "parse_chemical_network",
 ]
 from .uclchem_parser import UCLCHEMParser
 
-__all__ = ['UnifiedChemicalParser', 'BaseParser', 'UCLCHEMParser']
+__all__ = ["UnifiedChemicalParser", "BaseParser", "UCLCHEMParser"]

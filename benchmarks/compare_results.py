@@ -135,7 +135,7 @@ def compare_results(network_name: str, results_dir: str = 'results'):
     uclchem_df, carbox_df = load_results(network_name, results_dir)
     
     # Select species to plot
-    species = ["H", "H2", "H+", "C", "CO", "HCO", "HCO+", "H2CO", "CH3OH", "C+", "O+"]
+    species = ["H", "H2", "H+", "E-", "C", "CO", "HCO", "HCO+", "H2CO", "CH3OH", "C+", "O+"]
     species = [
         s for s in species
         if s in uclchem_df.columns and s in carbox_df.columns

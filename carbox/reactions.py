@@ -255,7 +255,14 @@ class UCLCHEMH2FormReaction(Reaction):
     For full treatment, pass dust_temp separately.
     """
 
-    def __init__(self, reaction_type, reactants, products, **kwargs):
+    def __init__(
+        self,
+        reaction_type,
+        reactants,
+        products,
+        alpha=1.0,
+        **kwargs,
+    ):
         """
         Initialize H2 formation reaction.
 
@@ -263,9 +270,12 @@ class UCLCHEMH2FormReaction(Reaction):
             reaction_type: Type identifier for the reaction
             reactants: List of reactant species
             products: List of product species
-            **kwargs: Ignored. Allows vectorization to pass extra parameters.
+            alpha: Multiplicative scaling factor for rate (default=1.0)
+            **kwargs: Ignored. Allows vectorization to pass extra params.
         """
         super().__init__(reaction_type, reactants, products)
+
+        self.alpha = alpha
 
         # Silicate grain properties
         self.silicate_mu = 0.005  # Fraction of H2 staying on surface
@@ -312,6 +322,7 @@ class UCLCHEMH2FormReaction(Reaction):
             graphite_cross_section: float
 
             hflux: float
+            alpha: float
 
             def __call__(
                 self,
@@ -414,7 +425,7 @@ class UCLCHEMH2FormReaction(Reaction):
                     * sticking_coeff
                 )
 
-                return rate
+                return rate * self.alpha
 
         # Convert all parameters to JAX arrays
         return UCLCHEMH2FormRateTerm(
@@ -435,6 +446,7 @@ class UCLCHEMH2FormReaction(Reaction):
             graphite_nu_hc=jnp.array(self.graphite_nu_hc),
             graphite_cross_section=jnp.array(self.graphite_cross_section),
             hflux=jnp.array(self.hflux),
+            alpha=jnp.array(self.alpha),
         )
 
 

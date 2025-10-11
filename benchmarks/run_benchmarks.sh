@@ -34,6 +34,8 @@ NETWORKS=("small_chemistry" "gas_phase_only")
 SKIP_UCLCHEM=false
 SKIP_CARBOX=false
 COMPARE_ONLY=false
+TIME_BENCHMARK=false
+N_RUNS=1
 
 # ============================================================
 # Parse Arguments
@@ -59,9 +61,14 @@ while [[ $# -gt 0 ]]; do
             NETWORKS=($2)
             shift 2
             ;;
+        --time-benchmark)
+            TIME_BENCHMARK=true
+            N_RUNS=${2:-10}  # Default to 10 runs if not specified
+            shift 2
+            ;;
         *)
             echo -e "${RED}Unknown option: $1${NC}"
-            echo "Usage: $0 [--skip-uclchem] [--skip-carbox] [--compare-only] [--network NAME]"
+            echo "Usage: $0 [--skip-uclchem] [--skip-carbox] [--compare-only] [--network NAME] [--time-benchmark N_RUNS]"
             exit 1
             ;;
     esac
@@ -108,7 +115,7 @@ for network in "${NETWORKS[@]}"; do
     # Step 1: Build UCLCHEM Network
     # --------------------------------------------------------
     
-    if [ "$COMPARE_ONLY" = false ]; then
+    if [ [$("$COMPARE_ONLY" = false)] & [!$SKIP_UCLCHEM]]; then
         echo -e "${YELLOW}[1/4] Building UCLCHEM network...${NC}"
         
         cd "$PROJECT_ROOT/uclchem/Makerates"
@@ -156,7 +163,11 @@ for network in "${NETWORKS[@]}"; do
         echo ""
         
         cd "$SCRIPT_DIR"
-        python run_uclchem.py --network "$network"
+        if [ "$TIME_BENCHMARK" = true ]; then
+            python run_uclchem.py --network "$network" --n-runs "$N_RUNS"
+        else
+            python run_uclchem.py --network "$network"
+        fi
         
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}✓ UCLCHEM complete${NC}"
@@ -192,7 +203,11 @@ for network in "${NETWORKS[@]}"; do
         echo ""
         
         cd "$SCRIPT_DIR"
-        python run_carbox.py --network "$network"
+        if [ "$TIME_BENCHMARK" = true ]; then
+            python run_carbox.py --network "$network" --n-runs "$N_RUNS"
+        else
+            python run_carbox.py --network "$network"
+        fi
         
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}✓ Carbox complete${NC}"

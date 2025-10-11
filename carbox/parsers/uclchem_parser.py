@@ -133,7 +133,7 @@ class UCLCHEMParser(BaseParser):
 
         print(f"✓ Detected {special_reaction_count} special photoreactions")
         # Create network with vectorization enabled
-        return Network(species, reactions, use_sparse=True, vectorize_reactions=True)
+        return Network(species, reactions, use_sparse=False, vectorize_reactions=True)
 
     def parse_reaction(self, row) -> Optional[KAReaction]:
         """Parse a single UCLCHEM reaction row"""
