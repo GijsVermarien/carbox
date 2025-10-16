@@ -115,7 +115,7 @@ for network in "${NETWORKS[@]}"; do
     # Step 1: Build UCLCHEM Network
     # --------------------------------------------------------
     
-    if [ [$("$COMPARE_ONLY" = false)] & [!$SKIP_UCLCHEM]]; then
+    if [[ "$COMPARE_ONLY" == false  && "$SKIP_UCLCHEM" == false ]]; then
         echo -e "${YELLOW}[1/4] Building UCLCHEM network...${NC}"
         
         cd "$PROJECT_ROOT/uclchem/Makerates"
