@@ -4,3 +4,10 @@ __pycache__
 .log
 .DS_Store
 plugins
+
+# IDE stuff
+.kilocode/
+.vscode/
+pyproject.toml
+.devcontainer/
+.venv/
