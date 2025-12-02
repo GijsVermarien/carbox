@@ -1,3 +1,7 @@
+
+# Note
+This is a fork of the original repository primarily for testing. Full credit goes to GijsVermarien and the original repository listed [here](https://github.com/GijsVermarien/carbox.git).
+
 # Carbox
 
 Carbox is a simulation framework for simulating astrochemical kinetic reaction systems. 
