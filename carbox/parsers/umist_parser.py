@@ -1,5 +1,3 @@
-from typing import Dict, List, Optional
-
 import numpy as np
 import pandas as pd
 
@@ -10,8 +8,7 @@ from .base_parser import BaseParser
 
 
 class UMISTParser(BaseParser):
-    """
-    Parser for UMIST reaction format - adapted from existing parser_umist.py
+    """Parser for UMIST reaction format - adapted from existing parser_umist.py.
 
     This is a legacy adapter to integrate the existing UMIST parser
     with the unified parser architecture.
@@ -93,7 +90,7 @@ class UMISTParser(BaseParser):
         # Create network
         return Network(species, reactions, use_sparse=True, vectorize_reactions=True)
 
-    def parse_reaction(self, row) -> Optional[KAReaction]:
+    def parse_reaction(self, row) -> KAReaction | None:
         """Parse a single UMIST reaction row"""
         try:
             # Parse reactants and products
@@ -127,13 +124,14 @@ class UMISTParser(BaseParser):
             print(f"Warning: Failed to parse UMIST reaction: {e}")
             return None
 
-    def _parse_species_list(self, species_str: str) -> List[str]:
+    def _parse_species_list(self, species_str: str) -> list[str]:
         """Parse UMIST species list (space or + separated)"""
-        if isinstance(species_str, str) and (
-            not species_str or species_str.strip() == ""
+        if (
+            isinstance(species_str, str)
+            and (not species_str or species_str.strip() == "")
+            or isinstance(species_str, float)
+            and np.isnan(species_str)
         ):
-            return []
-        elif isinstance(species_str, float) and np.isnan(species_str):
             return []
 
         # Handle both space and + separators

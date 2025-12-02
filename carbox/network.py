@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from functools import partial
-from typing import List
 
 import equinox as eqx
 import jax
@@ -12,9 +11,9 @@ from .species import Species
 
 
 class JNetwork(eqx.Module):
-    incidence: jnp.array
-    reactions: List[JReactionRateTerm]
-    reactant_multipliers: jnp.array
+    incidence: jnp.ndarray
+    reactions: list[JReactionRateTerm]
+    reactant_multipliers: jnp.ndarray
 
     def __init__(self, incidence, reactions, dense=True):
         self.incidence = incidence  # S, R
@@ -61,8 +60,7 @@ class JNetwork(eqx.Module):
 
     @jax.jit
     def get_rates(self, temperature, cr_rate, fuv_rate, visual_extinction, abundances):
-        """
-        Get the reaction rates for the given temperature, cosmic ray ionisation rate,
+        """Get the reaction rates for the given temperature, cosmic ray ionisation rate,
         FUV radiation field, and abundance vector.
         """
         # TODO: optimization: The most Jax way to do optimize would be to create one class with all the reactions of one type and all their constants.
@@ -79,9 +77,7 @@ class JNetwork(eqx.Module):
 
     @jax.jit
     def multiply_rates_by_abundance(self, rates, abundances):
-        """
-        Multiply the rates by the abundances of the reactants.
-        """
+        """Multiply the rates by the abundances of the reactants."""
         # We scatter the abunndances in two columns, with unity if it is monomolecular
         # This is achieved by "dropping" values we cannnot reach. Then take the product of each row, and mulitply it with the rates.
         rates_multiplier = jnp.ones_like(self.reactant_multipliers)
@@ -120,9 +116,9 @@ class JNetwork(eqx.Module):
 
 @dataclass
 class Network:
-    species: List[Species]
-    reactions: List[Reaction]
-    incidence: jnp.array
+    species: list[Species]
+    reactions: list[Reaction]
+    incidence: jnp.ndarray
     use_sparse: bool
     vectorize_reactions: bool
 
@@ -137,18 +133,14 @@ class Network:
         self.incidence = self.construct_incidence(self.species, self.reactions)
 
     def species_count(self):
-        """
-        Get the number of species in the network.
-        """
+        """Get the number of species in the network."""
         return self.incidence.shape[0]
 
     def reaction_count(self):
-        """
-        Get the number of reactions in the network.
-        """
+        """Get the number of reactions in the network."""
         return self.incidence.shape[1]
 
-    def construct_incidence(self, species, reactions):
+    def construct_incidence(self, species: list[Species], reactions):
         index = {sp.name: idx for idx, sp in enumerate(species)}
         incidence = jnp.zeros((len(species), len(reactions)), dtype=jnp.int16)  # S, R
         # Fill the incidence matrix with all terms:
@@ -162,15 +154,11 @@ class Network:
         return incidence
 
     def get_index(self, species: str) -> int:
-        """
-        Get the index of a species in the network.
-        """
+        """Get the index of a species in the network."""
         return self.species.index(species)
 
     def get_elemental_contents(self, elements=["C", "H", "O", "charge"]):
-        """
-        Get the elemental contents of the species in the network.
-        """
+        """Get the elemental contents of the species in the network."""
         # Create a dictionary to map species to their elemental content
         element_map = {element: idx for idx, element in enumerate(elements)}
         # Create an empty array to store the elemental content
@@ -198,8 +186,7 @@ class Network:
         return elemental_content
 
     def to_networkx(self):
-        """
-        Convert the reaction network to a NetworkX directed graph.
+        """Convert the reaction network to a NetworkX directed graph.
 
         Returns:
             networkx.DiGraph: A directed graph where:

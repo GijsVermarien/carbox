@@ -1,5 +1,4 @@
-"""
-Configuration management for Carbox simulations.
+"""Configuration management for Carbox simulations.
 
 Simple dataclass-based config for chemical kinetics simulations.
 Supports loading from YAML/JSON and programmatic setup.
@@ -8,7 +7,6 @@ Supports loading from YAML/JSON and programmatic setup.
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Optional
 
 import jax.numpy as jnp
 import yaml
@@ -18,7 +16,7 @@ import yaml
 class SimulationConfig:
     """Configuration for astrochemical kinetics simulation.
 
-    Attributes
+    Attributes:
     ----------
     Physical Parameters:
         number_density : float
@@ -84,7 +82,7 @@ class SimulationConfig:
     use_self_consistent_av: bool = False  # Compute Av from column density
 
     # Initial abundances (fractional relative to number_density)
-    initial_abundances: Dict[str, float] = field(
+    initial_abundances: dict[str, float] = field(
         default_factory=lambda: {
             "H2": 1.0,
             "O": 2e-4,
@@ -112,14 +110,14 @@ class SimulationConfig:
     @classmethod
     def from_yaml(cls, filepath: str) -> "SimulationConfig":
         """Load configuration from YAML file."""
-        with open(filepath, "r") as f:
+        with open(filepath) as f:
             data = yaml.safe_load(f)
         return cls(**data)
 
     @classmethod
     def from_json(cls, filepath: str) -> "SimulationConfig":
         """Load configuration from JSON file."""
-        with open(filepath, "r") as f:
+        with open(filepath) as f:
             data = json.load(f)
         return cls(**data)
 
@@ -134,37 +132,36 @@ class SimulationConfig:
             json.dump(self.__dict__, f, indent=2)
 
     def compute_visual_extinction(self) -> float:
-        """
-        Compute self-consistent visual extinction from column density.
-        
+        """Compute self-consistent visual extinction from column density.
+
         Formula: Av = base_Av + N_H / 1.6e21
         where N_H = cloud_radius_pc * number_density (converted to cm)
-        
-        Returns
+
+        Returns:
         -------
         float
             Visual extinction [mag]
         """
         if not self.use_self_consistent_av:
             return self.visual_extinction
-        
+
         # Convert parsec to cm: 1 pc = 3.086e18 cm
-        PC_TO_CM = 3.086e18
-        cloud_radius_cm = self.cloud_radius_pc * PC_TO_CM
-        
+        pc_to_cm = 3.086e18
+        cloud_radius_cm = self.cloud_radius_pc * pc_to_cm
+
         # Column density: N_H = n_H * L [cm^-2]
         column_density = cloud_radius_cm * self.number_density
-        
+
         # Av = base_Av + N_H / 1.6e21
         av = self.base_av + column_density / 1.6e21
-        
+
         return av
 
     def get_physical_params_jax(self):
         """Get JAX arrays for physical parameters (for solver args)."""
         # Compute Av (either fixed or self-consistent)
         visual_extinction = self.compute_visual_extinction()
-        
+
         return {
             "temperature": jnp.array(self.temperature),
             "cr_rate": jnp.array(self.cr_rate),
@@ -177,7 +174,7 @@ class SimulationConfig:
         assert 1e2 <= self.number_density <= 1e8, "number_density out of physical range"
         assert 10 <= self.temperature <= 1e5, "temperature out of range"
         # assert 1e-18 <= self.cr_rate <= 1e-12, "cr_rate out of typical range"
-        assert 0 <= self.visual_extinction, "visual_extinction out of range"
+        assert self.visual_extinction >= 0, "visual_extinction out of range"
         assert self.t_end > self.t_start, "t_end must be > t_start"
         assert self.solver in ["dopri5", "kvaerno5", "tsit5"], (
             f"Unknown solver: {self.solver}"

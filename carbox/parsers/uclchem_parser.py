@@ -33,7 +33,7 @@ UNIFIED_REACTION_MAPPING = {
 
 
 class UCLCHEMParser(BaseParser):
-    """Parser for UCLCHEM reaction format - gas-phase reactions only"""
+    """Parser for UCLCHEM reaction format - gas-phase reactions only."""
 
     def __init__(self, cloud_radius_pc: float = 1.0, number_density: float = 1e4):
         super().__init__()
@@ -135,7 +135,7 @@ class UCLCHEMParser(BaseParser):
         # Create network with vectorization enabled
         return Network(species, reactions, use_sparse=False, vectorize_reactions=True)
 
-    def parse_reaction(self, row) -> Optional[KAReaction]:
+    def parse_reaction(self, row) -> KAReaction | None:
         """Parse a single UCLCHEM reaction row"""
         # Skip surface reactions
         if not self._is_gas_phase_reaction(row):
@@ -164,7 +164,7 @@ class UCLCHEMParser(BaseParser):
 
         # Get reaction type and map to Carbox reaction class
         reaction_type = self._identify_reaction_type(row)
-        reaction_class = UNIFIED_REACTION_MAPPING.get(reaction_type, None)
+        reaction_class = UNIFIED_REACTION_MAPPING.get(reaction_type)
 
         # Normalize parameters
         alpha, beta, gamma = self.normalize_arrhenius_params(row, "uclchem")
@@ -300,7 +300,7 @@ class UCLCHEMParser(BaseParser):
 
         return df[gas_phase_mask]
 
-    def _clean_species_name(self, name: str) -> Optional[str]:
+    def _clean_species_name(self, name: str) -> str | None:
         """Normalize UCLCHEM species names to Carbox format"""
         if pd.isna(name) or name == "NAN":
             return None

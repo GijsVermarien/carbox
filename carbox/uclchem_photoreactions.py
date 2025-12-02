@@ -1,5 +1,4 @@
-"""
-UCLCHEM photoreactions module - JAX-compatible implementation.
+"""UCLCHEM photoreactions module - JAX-compatible implementation.
 
 Provides photodissociation and photoionization rates for H2, CO, and C
 with self-shielding and dust extinction effects.

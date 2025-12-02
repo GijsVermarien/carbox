@@ -1,15 +1,14 @@
-from typing import Dict, Type, Optional
+import os
+
+from ..network import Network
 from .base_parser import BaseParser
+from .latent_tgas_parser import LatentTGASParser
 from .uclchem_parser import UCLCHEMParser
 from .umist_parser import UMISTParser
-from .latent_tgas_parser import LatentTGASParser
-from ..network import Network
-import os
 
 
 class UnifiedChemicalParser:
-    """
-    Unified interface for parsing different chemical reaction network formats.
+    """Unified interface for parsing different chemical reaction network formats.
 
     Supports:
     - UCLCHEM (CSV format with surface chemistry)
@@ -18,17 +17,14 @@ class UnifiedChemicalParser:
     """
 
     def __init__(self):
-        self.parsers: Dict[str, Type[BaseParser]] = {
+        self.parsers: dict[str, type[BaseParser]] = {
             "uclchem": UCLCHEMParser,
             "umist": UMISTParser,
             "latent_tgas": LatentTGASParser,
         }
 
-    def parse(
-        self, filepath: str, format_type: Optional[str] = None, **kwargs
-    ) -> Network:
-        """
-        Parse a chemical reaction network file using the appropriate parser.
+    def parse(self, filepath: str, format_type: str | None = None, **kwargs) -> Network:
+        """Parse a chemical reaction network file using the appropriate parser.
 
         Args:
             filepath: Path to the reaction file
@@ -53,7 +49,7 @@ class UnifiedChemicalParser:
         return parser.parse_network(filepath, **kwargs)
 
     def _detect_format(self, filepath: str) -> str:
-        """Auto-detect file format based on filename and structure"""
+        """Auto-detect file format based on filename and structure."""
         filename = os.path.basename(filepath).lower()
 
         # Format detection heuristics
@@ -66,7 +62,7 @@ class UnifiedChemicalParser:
 
         # Fallback to file structure detection
         try:
-            with open(filepath, "r") as f:
+            with open(filepath) as f:
                 first_line = f.readline().strip()
 
                 # Check for UCLCHEM CSV headers
@@ -80,24 +76,25 @@ class UnifiedChemicalParser:
                 # Default to LATENT-TGAS CSV
                 return "latent_tgas"
 
-        except Exception:
-            raise ValueError(f"Could not auto-detect format for file: {filepath}")
+        except Exception as e:
+            raise ValueError(
+                f"Could not auto-detect format for file: {filepath}"
+            ) from e
 
-    def register_parser(self, format_type: str, parser_class: Type[BaseParser]):
-        """Register a new parser for a specific format"""
+    def register_parser(self, format_type: str, parser_class: type[BaseParser]):
+        """Register a new parser for a specific format."""
         self.parsers[format_type] = parser_class
 
     def list_supported_formats(self) -> list:
-        """List all supported reaction network formats"""
+        """List all supported reaction network formats."""
         return list(self.parsers.keys())
 
 
 # Convenience function for direct parsing
 def parse_chemical_network(
-    filepath: str, format_type: Optional[str] = None, **kwargs
+    filepath: str, format_type: str | None = None, **kwargs
 ) -> Network:
-    """
-    Convenience function to parse a chemical reaction network file.
+    """Convenience function to parse a chemical reaction network file.
 
     Args:
         filepath: Path to the reaction file

@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 import pandas as pd
 
 from ..network import Network
@@ -9,8 +7,7 @@ from .base_parser import BaseParser
 
 
 class LatentTGASParser(BaseParser):
-    """
-    Parser for latent_tgas reaction format - adapted from existing parser_latent_tgas.py
+    """Parser for latent_tgas reaction format - adapted from existing parser_latent_tgas.py
 
     This is a legacy adapter to integrate the existing latent_tgas parser
     with the unified parser architecture.
@@ -54,7 +51,7 @@ class LatentTGASParser(BaseParser):
         # Create network
         return Network(species, reactions, use_sparse=True, vectorize_reactions=True)
 
-    def parse_reaction(self, row) -> Optional[KAReaction]:
+    def parse_reaction(self, row) -> KAReaction | None:
         """Parse a single latent_tgas reaction row"""
         try:
             # Parse reactants and products (simplified 2→2 format)

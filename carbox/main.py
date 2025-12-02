@@ -1,5 +1,4 @@
-"""
-Carbox: JAX-accelerated chemical kinetics simulation framework.
+"""Carbox: JAX-accelerated chemical kinetics simulation framework.
 
 Main entry point for running astrochemical reaction network simulations.
 
@@ -24,14 +23,8 @@ import argparse
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import jax
-import jax.numpy as jnp
-
-# JAX configuration for numerical stability
-jax.config.update("jax_enable_x64", True)
-jax.config.update("jax_debug_nans", True)
 
 from .config import SimulationConfig
 from .initial_conditions import (
@@ -49,15 +42,18 @@ from .output import (
 from .parsers import parse_chemical_network
 from .solver import compute_derivatives, compute_reaction_rates, solve_network
 
+# JAX configuration for numerical stability
+jax.config.update("jax_enable_x64", True)
+jax.config.update("jax_debug_nans", True)
+
 
 def run_simulation(
     network_file: str,
     config: SimulationConfig,
-    format_type: Optional[str] = None,
+    format_type: str | None = None,
     verbose: bool = True,
 ) -> dict:
-    """
-    Run a chemical kinetics simulation.
+    """Run a chemical kinetics simulation.
 
     Workflow:
     1. Load network from file
@@ -78,7 +74,7 @@ def run_simulation(
     verbose : bool
         Print progress messages
 
-    Returns
+    Returns:
     -------
     results : dict
         Dictionary containing:
@@ -87,10 +83,10 @@ def run_simulation(
         - 'config': Configuration used
         - 'computation_time': Wall-clock time [s]
 
-    Examples
+    Examples:
     --------
     >>> config = SimulationConfig(number_density=1e4, t_end=1e5)
-    >>> results = run_simulation('data/network.csv', config)
+    >>> results = run_simulation("data/network.csv", config)
     """
     start_time = datetime.now()
 
@@ -153,6 +149,9 @@ def run_simulation(
     solution = solve_network(jnetwork, y0, config)
     solve_time = (datetime.now() - solve_start).total_seconds()
 
+    if not (solution.ys and solution.ts):
+        raise Exception("Missing solution.ys or solution.ts.")
+
     if verbose:
         print(f"  Integration complete in {solve_time:.2f} seconds")
         if hasattr(solution, "stats"):
@@ -184,7 +183,7 @@ def run_simulation(
     if config.save_rates:
         if verbose:
             print("  Computing reaction rates...")
-        rates = compute_reaction_rates(jnetwork, solution, config)
+        rates = compute_reaction_rates(network, jnetwork, solution, config)
         save_reaction_rates(rates, solution.ts, network, config)
 
     # Save metadata and summary
@@ -216,13 +215,13 @@ def main():
 Examples:
   # Run with default parameters
   python -m carbox.main --input data/network.csv
-  
+
   # Use configuration file
   python -m carbox.main --input data/network.csv --config my_config.yaml
-  
+
   # Specify format explicitly
   python -m carbox.main --input data/network.csv --format umist
-  
+
   # Custom output directory and run name
   python -m carbox.main --input data/network.csv --output results/ --name test_run
         """,

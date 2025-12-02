@@ -1,5 +1,4 @@
-"""
-Initial conditions setup for chemical kinetics simulations.
+"""Initial conditions setup for chemical kinetics simulations.
 
 Handles initialization of abundance vectors from configuration.
 """
@@ -13,8 +12,7 @@ from .network import Network
 
 
 def initialize_abundances(network: Network, config: SimulationConfig) -> jnp.ndarray:
-    """
-    Initialize abundance vector from configuration.
+    """Initialize abundance vector from configuration.
 
     Converts fractional abundances (from config/YAML) to absolute abundances.
 
@@ -30,13 +28,13 @@ def initialize_abundances(network: Network, config: SimulationConfig) -> jnp.nda
     config : SimulationConfig
         Configuration with initial abundances (fractional, x_i)
 
-    Returns
+    Returns:
     -------
     y0 : jnp.ndarray
         Initial abundance vector [# species]
         Values in absolute abundance [cm^-3]: n_i = x_i * number_density
 
-    Notes
+    Notes:
     -----
     Abundance Convention:
     - **Input (config.initial_abundances)**: Fractional abundances x_i
@@ -72,10 +70,9 @@ def initialize_abundances(network: Network, config: SimulationConfig) -> jnp.nda
 
 
 def validate_elemental_conservation(
-    network: Network, y0: jnp.ndarray, elements: List[str] = ["C", "H", "O"]
-) -> Dict[str, float]:
-    """
-    Check initial elemental abundances.
+    network: Network, y0: jnp.ndarray, elements: list[str] = ["C", "H", "O"]
+) -> dict[str, float]:
+    """Check initial elemental abundances.
 
     Parameters
     ----------
@@ -86,12 +83,12 @@ def validate_elemental_conservation(
     elements : List[str]
         Elements to check
 
-    Returns
+    Returns:
     -------
     elemental_abundances : Dict[str, float]
         Total abundance per element [cm^-3]
 
-    Notes
+    Notes:
     -----
     Useful for verifying setup matches expected elemental ratios.
     Should be conserved throughout integration (chemistry conserves atoms).
@@ -107,8 +104,7 @@ def validate_elemental_conservation(
 
 
 def abundance_summary(network: Network, y0: jnp.ndarray, top_n: int = 10) -> str:
-    """
-    Generate human-readable summary of initial abundances.
+    """Generate human-readable summary of initial abundances.
 
     Parameters
     ----------
@@ -119,7 +115,7 @@ def abundance_summary(network: Network, y0: jnp.ndarray, top_n: int = 10) -> str
     top_n : int
         Number of top species to show
 
-    Returns
+    Returns:
     -------
     summary : str
         Formatted summary string
