@@ -104,8 +104,65 @@ def benchmark_sequential(cr_rates, jnetwork, y0, base_config):
     return results, elapsed
 
 
-def benchmark_batch(cr_rates, jnetwork, y0, base_config):
-    """Run parameter sweep using batched vmap with JIT (new approach)."""
+def benchmark_vmap(cr_rates, jnetwork, y0, base_config):
+    """Run parameter sweep using batched vmap (without JIT)."""
+    start_time = time.perf_counter()
+
+    # Create parameter arrays
+    cr_array = jnp.array(cr_rates)
+    temp_array = jnp.full_like(cr_array, base_config.temperature)
+    fuv_array = jnp.full_like(cr_array, base_config.fuv_field)
+    av_array = jnp.full_like(cr_array, base_config.visual_extinction)
+
+    if base_config.t_start <= 0:
+        t_start_log = -9
+        t_log = jnp.logspace(
+            t_start_log, jnp.log10(base_config.t_end), base_config.n_snapshots - 1
+        )
+        t_snapshots = jnp.concatenate([jnp.array([0.0]), t_log])
+    else:
+        t_log = jnp.logspace(
+            jnp.log10(base_config.t_start),
+            jnp.log10(base_config.t_end),
+            base_config.n_snapshots - 1,
+        )
+        t_snapshots = jnp.concatenate([jnp.array([base_config.t_start]), t_log])
+
+    # Batch solve without JIT
+    solutions = solve_network_batch(
+        jnetwork=jnetwork,
+        y0=y0,
+        t_eval=t_snapshots,
+        temperatures=temp_array,
+        cr_rates=cr_array,
+        fuv_fields=fuv_array,
+        visual_extinctions=av_array,
+        solver_name=base_config.solver,
+        atol=base_config.atol,
+        rtol=base_config.rtol,
+        max_steps=base_config.max_steps,
+    )
+
+    elapsed = time.perf_counter() - start_time
+
+    # Process results
+    results = []
+    for i, cr_rate in enumerate(cr_rates):
+        ys_i = solutions.ys[i]
+        success = ys_i is not None and len(ys_i) > 0
+        results.append(
+            {
+                "cr_rate": float(cr_rate),
+                "success": success,
+                "final_abundance": float(ys_i[-1, 0]) if success else 0.0,
+            }
+        )
+
+    return results, elapsed
+
+
+def benchmark_vmap_jit(cr_rates, jnetwork, y0, base_config):
+    """Run parameter sweep using batched vmap with JIT."""
     # Create parameter arrays
     cr_array = jnp.array(cr_rates)
     temp_array = jnp.full_like(cr_array, base_config.temperature)
@@ -194,7 +251,7 @@ def main():
         return
 
     # Test parameter values (small sweep for quick benchmarking)
-    cr_rates = np.logspace(-18, -16, 8)  # 8 values from 1e-18 to 1e-16
+    cr_rates = np.logspace(-18, -16, 32)  # 8 values from 1e-18 to 1e-16
 
     print(f"Testing with {len(cr_rates)} parameter values")
     print(f"Parameter range: {cr_rates[0]:.2e} to {cr_rates[-1]:.2e} s^-1")
@@ -210,32 +267,46 @@ def main():
     print(f"  Successful: {seq_success}/{len(cr_rates)}")
     print()
 
-    # Benchmark batch
-    print("Running batch (vmap) benchmark...")
-    batch_results, batch_time = benchmark_batch(cr_rates, jnetwork, y0, base_config)
-    batch_success = sum(1 for r in batch_results if r["success"])
-    print(f"Batch time: {batch_time:.2f}s")
-    print(f"  Successful: {batch_success}/{len(cr_rates)}")
+    # Benchmark vmap
+    print("Running vmap benchmark...")
+    vmap_results, vmap_time = benchmark_vmap(cr_rates, jnetwork, y0, base_config)
+    vmap_success = sum(1 for r in vmap_results if r["success"])
+    print(f"Vmap time: {vmap_time:.2f}s")
+    print(f"  Successful: {vmap_success}/{len(cr_rates)}")
+    print()
+
+    # Benchmark vmap + JIT
+    print("Running vmap + JIT benchmark...")
+    jit_results, jit_time = benchmark_vmap_jit(cr_rates, jnetwork, y0, base_config)
+    jit_success = sum(1 for r in jit_results if r["success"])
+    print(f"JIT time: {jit_time:.2f}s")
+    print(f"  Successful: {jit_success}/{len(cr_rates)}")
     print()
 
     # Compare results
-    if seq_success == batch_success == len(cr_rates):
-        print("✓ All simulations successful in both methods")
+    if seq_success == vmap_success == jit_success == len(cr_rates):
+        print("✓ All simulations successful in all methods")
     else:
         print("⚠ Different success rates - check implementation")
 
-    # Calculate speedup
-    if batch_time > 0:
-        speedup = seq_time / batch_time
-        print(f"Speedup: {speedup:.1f}x")
+    # Calculate speedups
+    if vmap_time > 0:
+        vmap_speedup = seq_time / vmap_time
+        print(f"Vmap speedup: {vmap_speedup:.1f}x")
     else:
-        print("✗ Batch execution failed")
+        print("✗ Vmap execution failed")
+
+    if jit_time > 0:
+        jit_speedup = seq_time / jit_time
+        print(f"JIT speedup: {jit_speedup:.1f}x")
+    else:
+        print("✗ JIT execution failed")
 
     # Verify results are similar
     max_diff = 0
-    for seq_r, batch_r in zip(seq_results, batch_results):
-        if seq_r["success"] and batch_r["success"]:
-            diff = abs(seq_r["final_abundance"] - batch_r["final_abundance"])
+    for seq_r, jit_r in zip(seq_results, jit_results):
+        if seq_r["success"] and jit_r["success"]:
+            diff = abs(seq_r["final_abundance"] - jit_r["final_abundance"])
             max_diff = max(max_diff, diff)
 
     print(f"Max abundance difference: {max_diff:.2e}")
