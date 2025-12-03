@@ -1,0 +1,39 @@
+============================================================
+Carbox Simulation Summary: carbox_run
+============================================================
+Timestamp: 2025-12-02T23:04:10.868298
+
+Physical Parameters:
+  Total density: 1.00e+04 cm^-3
+  Temperature: 50.0 K
+  CR ionization rate: 1.00e-17 s^-1
+  FUV field: 1.00e+00 Draine
+  Visual extinction: 2.0 mag
+
+Integration:
+  Time range: 0.00e+00 - 1.00e+06 years
+  Snapshots: 1000
+  Solver: kvaerno5
+  Tolerances: atol=1.00e-18, rtol=1.00e-12
+
+Network:
+  Species: 16
+  Reactions: 25
+
+Solver Statistics:
+  Total steps: 14270
+  Accepted: 14268
+  Rejected: 2
+
+Final Abundances (top 10):
+  H          1.997e+04 cm^-3
+  E          2.095e+01 cm^-3
+  H+         2.095e+01 cm^-3
+  H2         6.560e+00 cm^-3
+  O          1.997e+00 cm^-3
+  C          9.951e-01 cm^-3
+  C+         4.443e-03 cm^-3
+  O+         2.446e-03 cm^-3
+  CO         4.490e-04 cm^-3
+  OH+        8.059e-05 cm^-3
+============================================================

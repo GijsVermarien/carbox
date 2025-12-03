@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Cosmic Ray Ionization Rate Sensitivity Analysis
+"""Cosmic Ray Ionization Rate Sensitivity Analysis.
 
 Varies the cosmic ray ionization rate (ζ) over 6 orders of magnitude
 to assess impact on chemical evolution.
@@ -25,7 +24,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from carbox.config import SimulationConfig  # noqa: E402
-from carbox.solver import SPY, solve_network  # noqa: E402
+from carbox.solver import SPY, solve_network, solve_network_batch  # noqa: E402
 
 # Enable JAX 64-bit and NaN debugging
 jax.config.update("jax_enable_x64", True)
@@ -59,8 +58,7 @@ def run_single_zeta(
     output_dir: Path,
     verbose: bool = False,
 ):
-    """
-    Run simulation with specific cosmic ray ionization rate.
+    """Run simulation with specific cosmic ray ionization rate.
 
     Parameters
     ----------
@@ -75,7 +73,7 @@ def run_single_zeta(
     verbose : bool
         Print detailed output
 
-    Returns
+    Returns:
     -------
     dict
         Results summary
@@ -89,7 +87,7 @@ def run_single_zeta(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Load initial conditions
-    with open(initial_conditions_file, "r") as f:
+    with open(initial_conditions_file) as f:
         yaml_data = yaml.safe_load(f)
         initial_abundances = yaml_data["abundances"]
 
@@ -136,9 +134,7 @@ def run_single_zeta(
         jnetwork = network.get_ode()
 
         # Get initial state
-        y0 = jnp.array(
-            [initial_abundances.get(sp.name, 0.0) for sp in network.species]
-        )
+        y0 = jnp.array([initial_abundances.get(sp.name, 0.0) for sp in network.species])
 
         # Solve ODE
         solution = solve_network(jnetwork, y0, config)
@@ -206,6 +202,208 @@ def run_single_zeta(
         }
 
 
+def run_batch_zeta(
+    zeta_values: np.ndarray,
+    network_file: Path,
+    initial_conditions_file: Path,
+    output_base: Path,
+    verbose: bool = False,
+):
+    """Run batch simulations with multiple cosmic ray ionization rates.
+
+    Parameters
+    ----------
+    zeta_values : np.ndarray
+        Cosmic ray ionization rates [s^-1]
+    network_file : Path
+        Path to network CSV file
+    initial_conditions_file : Path
+        Path to initial conditions YAML
+    output_base : Path
+        Base output directory
+    verbose : bool
+        Print detailed output
+
+    Returns:
+    -------
+    list[dict]
+        Results summaries for each zeta value
+    """
+    start_time = time.perf_counter()
+
+    try:
+        # Load initial conditions
+        with open(initial_conditions_file) as f:
+            yaml_data = yaml.safe_load(f)
+            initial_abundances = yaml_data["abundances"]
+
+        # Parse network using UCLCHEM parser with cloud parameters
+        from carbox.parsers import UCLCHEMParser
+
+        parser = UCLCHEMParser(
+            cloud_radius_pc=PHYSICAL_PARAMS["cloud_radius_pc"],
+            number_density=PHYSICAL_PARAMS["number_density"],
+        )
+        network = parser.parse_network(str(network_file))
+
+        if verbose:
+            print(f"  Total species: {len(network.species)}")
+            print(f"  Total reactions: {len(network.reactions)}")
+
+        # Compile network to JAX
+        jnetwork = network.get_ode()
+
+        # Get initial state
+        y0 = jnp.array([initial_abundances.get(sp.name, 0.0) for sp in network.species])
+
+        # Create time evaluation points (same for all simulations)
+        # Use same logic as solve_network
+        t_start_sec = PHYSICAL_PARAMS["t_start"] * SPY
+        t_end_sec = PHYSICAL_PARAMS["t_end"] * SPY
+
+        if PHYSICAL_PARAMS["t_start"] <= 0:
+            t_start_log = -9
+            t_log = jnp.logspace(
+                t_start_log,
+                jnp.log10(PHYSICAL_PARAMS["t_end"]),
+                PHYSICAL_PARAMS["n_snapshots"] - 1,
+            )
+            t_snapshots = jnp.concatenate([jnp.array([0.0]), t_log])
+        else:
+            t_log = jnp.logspace(
+                jnp.log10(PHYSICAL_PARAMS["t_start"]),
+                jnp.log10(PHYSICAL_PARAMS["t_end"]),
+                PHYSICAL_PARAMS["n_snapshots"] - 1,
+            )
+            t_snapshots = jnp.concatenate(
+                [jnp.array([PHYSICAL_PARAMS["t_start"]]), t_log]
+            )
+
+        # Create parameter arrays
+        zeta_array = jnp.array(zeta_values)
+        temp_array = jnp.full_like(zeta_array, PHYSICAL_PARAMS["temperature"])
+        fuv_array = jnp.full_like(zeta_array, PHYSICAL_PARAMS["fuv_field"])
+
+        # Compute visual extinction (same for all since other params are fixed)
+        config_temp = SimulationConfig(
+            number_density=PHYSICAL_PARAMS["number_density"],
+            temperature=PHYSICAL_PARAMS["temperature"],
+            cr_rate=PHYSICAL_PARAMS["cr_rate"],
+            fuv_field=PHYSICAL_PARAMS["fuv_field"],
+            visual_extinction=PHYSICAL_PARAMS["visual_extinction"],
+            use_self_consistent_av=PHYSICAL_PARAMS["use_self_consistent_av"],
+            cloud_radius_pc=PHYSICAL_PARAMS["cloud_radius_pc"],
+            base_av=PHYSICAL_PARAMS["base_av"],
+        )
+        av_value = config_temp.compute_visual_extinction()
+        av_array = jnp.full_like(zeta_array, av_value)
+
+        # Batch solve
+        solutions = solve_network_batch(
+            jnetwork=jnetwork,
+            y0=y0,
+            t_eval=t_snapshots,
+            temperatures=temp_array,
+            cr_rates=zeta_array,
+            fuv_fields=fuv_array,
+            visual_extinctions=av_array,
+            solver_name=PHYSICAL_PARAMS["solver"],
+            atol=PHYSICAL_PARAMS["atol"],
+            rtol=PHYSICAL_PARAMS["rtol"],
+            max_steps=PHYSICAL_PARAMS["max_steps"],
+        )
+
+        elapsed = time.perf_counter() - start_time
+
+        # Process batched results
+        results = []
+        species_names = [sp.name for sp in network.species]
+
+        # solutions is a batched Solution object
+        # ts: (batch_size, n_timesteps), ys: (batch_size, n_timesteps, n_species)
+        # stats fields are also batched
+        for i, zeta in enumerate(zeta_values):
+            output_dir = output_base / f"zeta_{zeta:.4e}"
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            # Extract individual solution from batch
+            ts_i = solutions.ts[i]  # Shape: (n_timesteps,)
+            ys_i = solutions.ys[i]  # Shape: (n_timesteps, n_species)
+
+            # Check solution success
+            success = ys_i is not None and len(ys_i) > 0
+
+            if success:
+                # Save abundances
+                abund_df = pd.DataFrame(ys_i, columns=species_names)
+                abund_df.insert(0, "time_years", ts_i / SPY)
+
+                abund_file = output_dir / "abundances.csv"
+                abund_df.to_csv(abund_file, index=False)
+
+                # Save metadata
+                metadata = {
+                    "cr_rate": float(zeta),
+                    "success": True,
+                    "elapsed_time": elapsed / len(zeta_values),  # Per-simulation time
+                    "n_species": len(network.species),
+                    "n_reactions": len(network.reactions),
+                    "n_timesteps": len(ts_i),
+                    "n_ode_steps": int(solutions.stats["num_steps"][i]),
+                    "n_accepted": int(solutions.stats["num_accepted_steps"][i]),
+                    "n_rejected": int(solutions.stats["num_rejected_steps"][i]),
+                    "final_time_years": float(ts_i[-1] / SPY),
+                    "physical_params": PHYSICAL_PARAMS.copy(),
+                }
+                metadata["physical_params"]["cr_rate"] = float(zeta)
+
+                metadata_file = output_dir / "metadata.json"
+                with open(metadata_file, "w") as f:
+                    json.dump(metadata, f, indent=2)
+
+                if verbose:
+                    print(f"  ✓ ζ = {zeta:.4e} complete")
+                    print(f"     Saved: {abund_file}")
+
+                results.append(metadata)
+            else:
+                if verbose:
+                    print(f"  ✗ ζ = {zeta:.4e} failed")
+
+                results.append(
+                    {
+                        "cr_rate": float(zeta),
+                        "success": False,
+                        "elapsed_time": elapsed / len(zeta_values),
+                        "error": "Batch solver failed",
+                    }
+                )
+
+        return results
+
+    except Exception as e:
+        elapsed = time.perf_counter() - start_time
+
+        if verbose:
+            print(f"  ✗ Batch failed after {elapsed:.2f}s")
+            print(f"  Error: {e}")
+
+        import traceback
+
+        traceback.print_exc()
+
+        # Return failure for all zeta values
+        return [
+            {
+                "cr_rate": float(zeta),
+                "success": False,
+                "elapsed_time": elapsed / len(zeta_values),
+                "error": str(e),
+            }
+            for zeta in zeta_values
+        ]
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Run cosmic ray ionization rate sensitivity analysis",
@@ -260,10 +458,7 @@ def main():
         sys.exit(1)
 
     if not initial_conditions_file.exists():
-        print(
-            f"ERROR: Initial conditions not found: "
-            f"{initial_conditions_file}"
-        )
+        print(f"ERROR: Initial conditions not found: {initial_conditions_file}")
         print("\nGenerate with:")
         print("  cd benchmarks")
         print("  python run_uclchem.py --network gas_phase_only")
@@ -293,31 +488,22 @@ def main():
 
     print(f"\nRunning {args.n_zetas} simulations...")
 
-    for i, zeta in enumerate(zeta_values):
-        print(f"\n[{i+1}/{args.n_zetas}] ζ = {zeta:.4e} s^-1", end="")
-        if not args.verbose:
-            print("...", end=" ", flush=True)
+    # Use batch execution for better performance
+    print("Using batch execution...")
+    results = run_batch_zeta(
+        zeta_values,
+        network_file,
+        initial_conditions_file,
+        output_base,
+        verbose=args.verbose,
+    )
 
-        output_dir = output_base / f"zeta_{zeta:.4e}"
-
-        result = run_single_zeta(
-            zeta,
-            network_file,
-            initial_conditions_file,
-            output_dir,
-            verbose=args.verbose,
-        )
-
-        results.append(result)
-
+    # Count successes/failures
+    for result in results:
         if result["success"]:
             successful += 1
-            if not args.verbose:
-                print(f"✓ ({result['elapsed_time']:.2f}s)")
         else:
             failed += 1
-            if not args.verbose:
-                print("✗ FAILED")
 
     # Save summary
     summary_file = output_base / "sensitivity_summary.json"

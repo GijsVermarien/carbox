@@ -149,7 +149,12 @@ def run_simulation(
     solution = solve_network(jnetwork, y0, config)
     solve_time = (datetime.now() - solve_start).total_seconds()
 
-    if not (solution.ys and solution.ts):
+    if (
+        not hasattr(solution, "ys")
+        or not hasattr(solution, "ts")
+        or solution.ys is None
+        or solution.ts is None
+    ):
         raise Exception("Missing solution.ys or solution.ts.")
 
     if verbose:

@@ -1,0 +1,61 @@
+{
+  "timestamp": "2025-12-02T23:04:10.864404",
+  "run_name": "carbox_run",
+  "computation_time_seconds": 9.444536,
+  "config": {
+    "physical_params": {
+      "number_density": 10000.0,
+      "temperature": 50.0,
+      "cr_rate": 1e-17,
+      "fuv_field": 1.0,
+      "visual_extinction": 2.0,
+      "visual_extinction_config": 2.0,
+      "use_self_consistent_av": false,
+      "cloud_radius_pc": 1.0,
+      "base_av": 0.0
+    },
+    "integration": {
+      "t_start": 0.0,
+      "t_end": 1000000.0,
+      "n_snapshots": 1000,
+      "solver": "kvaerno5",
+      "atol": 1e-18,
+      "rtol": 1e-12,
+      "max_steps": 500000
+    },
+    "initial_abundances": {
+      "H2": 1.0,
+      "O": 0.0002,
+      "C": 0.0001
+    }
+  },
+  "network": {
+    "n_species": 16,
+    "n_reactions": 25,
+    "species_names": [
+      "C",
+      "C+",
+      "CO",
+      "CO+",
+      "E",
+      "H",
+      "H+",
+      "H2",
+      "H2O",
+      "H2O+",
+      "H3O+",
+      "HCO+",
+      "O",
+      "O+",
+      "OH",
+      "OH+"
+    ],
+    "use_sparse": true,
+    "vectorize_reactions": true
+  },
+  "solver_stats": {
+    "num_steps": 14270,
+    "num_accepted_steps": 14268,
+    "num_rejected_steps": 2
+  }
+}
