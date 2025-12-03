@@ -9,5 +9,4 @@ plugins
 .kilocode/
 .vscode/
 pyproject.toml
-.devcontainer/
 .venv/
