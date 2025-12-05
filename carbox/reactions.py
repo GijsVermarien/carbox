@@ -1,15 +1,17 @@
+"""Reactions and different reaction types."""
+
 from dataclasses import dataclass
 
 import equinox as eqx
 import jax.numpy as jnp
 import numpy as np
+from jax import Array
 
 REACTION_SKIP_LIST = ["CRPHOT", "CRP", "PHOTON"]
 
 
 class JReactionRateTerm(eqx.Module):
-    """
-    Base class for JAX-compatible reaction rate terms.
+    """Base class for JAX-compatible reaction rate terms.
 
     All subclasses must implement __call__ with signature:
         __call__(self, temperature, cr_rate, uv_field, visual_extinction, abundance_vector)
@@ -18,21 +20,19 @@ class JReactionRateTerm(eqx.Module):
     Reactions that don't need abundance_vector can simply ignore it.
     """
 
-    pass
 
-
-# Concept:
-# The reaction network consists of abstract Species and Reactions, which are subclassed to reflect
-# different reactions. They are objects that interact nicely at the user level.
-# Each of these reactions needs to produce some ReactionRateTerm that takes: (T, density, ...) with its
-# own secret bits implemented as pytree variables + a function transform. These reactions can then be combined
-# by into a ChemicalNetwork that has a immutable copy of both the reaction network (objects) and the terms (pytree).
+"""
+Concept:
+The reaction network consists of abstract Species and Reactions, which are subclassed to reflect
+different reactions. They are objects that interact nicely at the user level.
+Each of these reactions needs to produce some ReactionRateTerm that takes: (T, density, ...) with its
+own secret bits implemented as pytree variables + a function transform. These reactions can then be combined
+by into a ChemicalNetwork that has a immutable copy of both the reaction network (objects) and the terms (pytree).
+"""
 
 
 def valid_species_check(species):
-    """
-    Check if the species are valid, i.e., not in the skip list.
-    """
+    """Check if the species are valid, i.e., not in the skip list."""
     valid = False
     if isinstance(species, float):
         valid = ~np.isnan(species)
@@ -60,7 +60,7 @@ class Reaction:
     def __repr__(self):
         return f"Reaction({self.reaction_type}, {self.reactants}, {self.products})\n"
 
-    def _reaction_rate_factory() -> JReactionRateTerm:
+    def _reaction_rate_factory(self) -> JReactionRateTerm:
         # Abstract function to implement in subclasses
         raise NotImplementedError
 
@@ -241,8 +241,7 @@ class H2FormReaction(Reaction):
 
 # UCLCHEM reactions:
 class UCLCHEMH2FormReaction(Reaction):
-    """
-    H2 formation on grains using UCLCHEM's Cazaux & Tielens (2002, 2004) treatment.
+    """H2 formation on grains using UCLCHEM's Cazaux & Tielens (2002, 2004) treatment.
 
     Implements the h2FormEfficiency function from UCLCHEM's surfacereactions.f90.
     This accounts for:
@@ -263,8 +262,7 @@ class UCLCHEMH2FormReaction(Reaction):
         alpha=1.0,
         **kwargs,
     ):
-        """
-        Initialize H2 formation reaction.
+        """Initialize H2 formation reaction.
 
         Args:
             reaction_type: Type identifier for the reaction
@@ -586,11 +584,12 @@ class IonPol2Reaction(Reaction):
 
 
 class GARReaction(Reaction):
-    """UCLCHEM GAR: Grain-assisted recombination (Weingartner & Draine 2001)
+    """UCLCHEM GAR: Grain-assisted recombination (Weingartner & Draine 2001).
+
     Simplified implementation for gas-phase comparison
     """
 
-    def __init__(self, reaction_type, reactants, products):
+    def __init__(self, reaction_type, reactants, products, *args):
         super().__init__(reaction_type, reactants, products)
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
@@ -605,12 +604,12 @@ class GARReaction(Reaction):
             ):
                 return NotImplementedError
 
-        return NotImplementedError
+        return NotImplementedError  # type:ignore
 
 
 class H2PhotoDissReaction(Reaction):
-    """
-    H2 photodissociation with self-shielding and dust extinction.
+    """H2 photodissociation with self-shielding and dust extinction.
+
     Uses UCLCHEM's treatment from photoreactions module.
     Requires cloud geometry and H2 abundance from state vector.
     """
@@ -665,8 +664,8 @@ class H2PhotoDissReaction(Reaction):
 
 
 class COPhotoDissReaction(Reaction):
-    """
-    CO photodissociation with self-shielding from H2 and CO.
+    """CO photodissociation with self-shielding from H2 and CO.
+
     Requires both H2 and CO abundances from state vector.
     """
 
@@ -723,8 +722,8 @@ class COPhotoDissReaction(Reaction):
 
 
 class CIonizationReaction(Reaction):
-    """
-    Carbon photoionization with dust extinction and gas-phase shielding.
+    """Carbon photoionization with dust extinction and gas-phase shielding.
+
     Requires C, H2 abundances from state vector.
     Uses UCLCHEM's treatment with dust and gas-phase shielding.
     """

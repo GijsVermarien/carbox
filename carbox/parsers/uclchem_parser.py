@@ -1,4 +1,4 @@
-from typing import Optional
+"""Parser for UCLCHEM reaction network."""
 
 import pandas as pd
 
@@ -13,6 +13,7 @@ from ..reactions import (
     IonPol1Reaction,
     IonPol2Reaction,
     KAReaction,
+    Reaction,
     UCLCHEMH2FormReaction,
     UCLCHEMPhotonReaction,
 )
@@ -35,7 +36,7 @@ UNIFIED_REACTION_MAPPING = {
 class UCLCHEMParser(BaseParser):
     """Parser for UCLCHEM reaction format - gas-phase reactions only."""
 
-    def __init__(self, cloud_radius_pc: float = 1.0, number_density: float = 1e4):
+    def __init__(self, cloud_radius_pc: float = 1.0, number_density: float = 1e4):  # noqa
         super().__init__()
         self.format_type = "uclchem"
 
@@ -75,7 +76,7 @@ class UCLCHEMParser(BaseParser):
         }
 
     def parse_network(self, filepath: str) -> Network:
-        """Parse UCLCHEM reactions file and return Network"""
+        """Parse UCLCHEM reactions file and return Network."""
         # Read CSV file
         df = pd.read_csv(filepath)
 
@@ -135,8 +136,8 @@ class UCLCHEMParser(BaseParser):
         # Create network with vectorization enabled
         return Network(species, reactions, use_sparse=False, vectorize_reactions=True)
 
-    def parse_reaction(self, row) -> KAReaction | None:
-        """Parse a single UCLCHEM reaction row"""
+    def parse_reaction(self, row) -> Reaction | None:
+        """Parse a single UCLCHEM reaction row."""
         # Skip surface reactions
         if not self._is_gas_phase_reaction(row):
             return None
@@ -223,7 +224,7 @@ class UCLCHEMParser(BaseParser):
         elif reaction_class == UCLCHEMH2FormReaction:
             # H2 formation uses physics-based rate, ignore alpha/beta/gamma
             return UCLCHEMH2FormReaction(reaction_type, reactants, products)
-        elif reaction_class in [IonPol1Reaction, IonPol2Reaction, GARReaction]:
+        elif reaction_class in (IonPol1Reaction, IonPol2Reaction, GARReaction):
             return reaction_class(
                 reaction_type, reactants, products, alpha, beta, gamma
             )
@@ -233,7 +234,7 @@ class UCLCHEMParser(BaseParser):
             raise ValueError(f"Unhandled reaction class: {reaction_class}")
 
     def _identify_reaction_type(self, row) -> str:
-        """Identify reaction type from UCLCHEM format"""
+        """Identify reaction type from UCLCHEM format."""
         reactants = [row["Reactant 1"], row["Reactant 2"], row["Reactant 3"]]
 
         # Check third reactant first, then second (UCLCHEM convention)
@@ -245,7 +246,7 @@ class UCLCHEMParser(BaseParser):
             return "TWOBODY"  # Standard bimolecular reaction
 
     def _is_gas_phase_reaction(self, row) -> bool:
-        """Filter out surface/grain reactions for gas-phase only analysis"""
+        """Filter out surface/grain reactions for gas-phase only analysis."""
         reaction_type = self._identify_reaction_type(row)
 
         # Exclude surface reaction types
@@ -274,7 +275,7 @@ class UCLCHEMParser(BaseParser):
         return True
 
     def _filter_gas_phase_reactions(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Filter UCLCHEM reactions to include only gas-phase chemistry"""
+        """Filter UCLCHEM reactions to include only gas-phase chemistry."""
         # Filter by reaction type
         gas_phase_mask = pd.Series(True, index=df.index)
 
@@ -301,7 +302,7 @@ class UCLCHEMParser(BaseParser):
         return df[gas_phase_mask]
 
     def _clean_species_name(self, name: str) -> str | None:
-        """Normalize UCLCHEM species names to Carbox format"""
+        """Normalize UCLCHEM species names to Carbox format."""
         if pd.isna(name) or name == "NAN":
             return None
 

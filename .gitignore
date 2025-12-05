@@ -10,3 +10,5 @@ plugins
 .vscode/
 pyproject.toml
 .venv/
+data/
+benchmarks_cosmicai/

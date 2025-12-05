@@ -11,58 +11,20 @@ from .species import Species
 
 
 class JNetwork(eqx.Module):
+    """Jax Jit compiled Network."""
+
     incidence: jnp.ndarray
     reactions: list[JReactionRateTerm]
     reactant_multipliers: jnp.ndarray
 
-    def __init__(self, incidence, reactions, dense=True):
+    def __init__(self, incidence, reactions, reactant_multipliers):
         self.incidence = incidence  # S, R
         self.reactions = reactions  # R
-        self.reactant_multipliers = self.get_reactant_multipliers(incidence)
-
-    def get_reactant_multipliers(self, incidence):
-        # In order to correctly get the flux, we need to multiply the rates per reaction
-        # by the abundances of the reactants. This is done by getting the indices of the
-        # reactants that need to be multiplied by the abundances and ensure they are repeated
-        # the correct number of times. Use double entries to avoid power in the computation.
-        if isinstance(incidence, sparse.BCOO):
-            reactants_for_multiply = jnp.argwhere(incidence.todense().T < 0)
-            times_for_multiply = -incidence[
-                reactants_for_multiply[:, 1], reactants_for_multiply[:, 0]
-            ].todense()
-        else:
-            reactants_for_multiply = jnp.argwhere(incidence.T < 0)
-            times_for_multiply = -incidence[
-                reactants_for_multiply[:, 1], reactants_for_multiply[:, 0]
-            ]
-        # We cannot do multiplies with duplicate entries, so create an array
-        # with two columns, one for each of the reactants. The second row
-        # is filled with an unreachable index, which we ignore by using "drop" in the
-        # multiply operation. See: https://github.com/jax-ml/jax/issues/9296
-        filler_value = incidence.shape[0] + 1
-        reactant_multiplier = jnp.full((incidence.shape[1], 2), filler_value)
-        for (reactant_idx, spec_idx), multiplier in zip(
-            reactants_for_multiply, times_for_multiply
-        ):
-            # multiplier allows us to reactions with identical reactants: H + H -> H2
-            for i in range(multiplier):
-                # Write the first column if there is still a filler value:
-                if reactant_multiplier[reactant_idx, 0] == filler_value:
-                    reactant_multiplier = reactant_multiplier.at[reactant_idx, 0].set(
-                        spec_idx
-                    )
-                # Else, write the second column:
-                else:
-                    reactant_multiplier = reactant_multiplier.at[reactant_idx, 1].set(
-                        spec_idx
-                    )
-        return reactant_multiplier
+        self.reactant_multipliers = reactant_multipliers
 
     @jax.jit
     def get_rates(self, temperature, cr_rate, fuv_rate, visual_extinction, abundances):
-        """Get the reaction rates for the given temperature, cosmic ray ionisation rate,
-        FUV radiation field, and abundance vector.
-        """
+        """Get the reaction rates for the given temperature, cosmic ray ionisation rate, FUV radiation field, and abundance vector."""
         # TODO: optimization: The most Jax way to do optimize would be to create one class with all the reactions of one type and all their constants.
         # rates = jnp.empty(len(self.reactions))
         # for i, reaction in enumerate(self.reactions):
@@ -119,6 +81,7 @@ class Network:
     species: list[Species]
     reactions: list[Reaction]
     incidence: jnp.ndarray
+    reactant_multipliers: jnp.ndarray
     use_sparse: bool
     vectorize_reactions: bool
 
@@ -129,8 +92,10 @@ class Network:
         self.vectorize_reactions = vectorize_reactions
         self.jreactions = []
 
-        # Create the incidence matrix (S species, R reactions)
-        self.incidence = self.construct_incidence(self.species, self.reactions)
+        # Create the incidence matrix (S species, R reactions) and reactant multipliers
+        self.incidence, self.reactant_multipliers = self.construct_incidence(
+            self.species, self.reactions
+        )
 
     def species_count(self):
         """Get the number of species in the network."""
@@ -149,9 +114,46 @@ class Network:
                 incidence = incidence.at[index[reactant], j].add(-1)
             for product in reaction.products:
                 incidence = incidence.at[index[product], j].add(1)
+
+        # Compute reactant multipliers from dense incidence before sparsifying
+        reactant_multipliers = self.compute_reactant_multipliers(incidence)
+
         if self.use_sparse:
             incidence = sparse.BCOO.fromdense(incidence)
-        return incidence
+        return incidence, reactant_multipliers
+
+    def compute_reactant_multipliers(self, incidence):
+        """Compute reactant multipliers from dense incidence matrix."""
+        # In order to correctly get the flux, we need to multiply the rates per reaction
+        # by the abundances of the reactants. This is done by getting the indices of the
+        # reactants that need to be multiplied by the abundances and ensure they are repeated
+        # the correct number of times. Use double entries to avoid power in the computation.
+        reactants_for_multiply = jnp.argwhere(incidence.T < 0)
+        times_for_multiply = -incidence[
+            reactants_for_multiply[:, 1], reactants_for_multiply[:, 0]
+        ]
+        # We cannot do multiplies with duplicate entries, so create an array
+        # with two columns, one for each of the reactants. The second row
+        # is filled with an unreachable index, which we ignore by using "drop" in the
+        # multiply operation. See: https://github.com/jax-ml/jax/issues/9296
+        filler_value = incidence.shape[0] + 1
+        reactant_multiplier = jnp.full((incidence.shape[1], 2), filler_value)
+        for (reactant_idx, spec_idx), multiplier in zip(
+            reactants_for_multiply, times_for_multiply
+        ):
+            # multiplier allows us to reactions with identical reactants: H + H -> H2
+            for i in range(multiplier):
+                # Write the first column if there is still a filler value:
+                if reactant_multiplier[reactant_idx, 0] == filler_value:
+                    reactant_multiplier = reactant_multiplier.at[reactant_idx, 0].set(
+                        spec_idx
+                    )
+                # Else, write the second column:
+                else:
+                    reactant_multiplier = reactant_multiplier.at[reactant_idx, 1].set(
+                        spec_idx
+                    )
+        return reactant_multiplier
 
     def get_index(self, species: str) -> int:
         """Get the index of a species in the network."""
@@ -292,4 +294,4 @@ class Network:
                 self.jreactions.append(reaction())
         else:
             self.jreactions = [reaction() for reaction in self.reactions]
-        return JNetwork(self.incidence, self.jreactions)
+        return JNetwork(self.incidence, self.jreactions, self.reactant_multipliers)

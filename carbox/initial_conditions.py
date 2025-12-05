@@ -3,8 +3,6 @@
 Handles initialization of abundance vectors from configuration.
 """
 
-from typing import Dict, List
-
 import jax.numpy as jnp
 
 from .config import SimulationConfig
