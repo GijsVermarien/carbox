@@ -7,7 +7,7 @@ The Carbox unified parser provides a single interface for parsing multiple chemi
 ### UCLCHEM Format
 - **File format**: CSV with columns for reactants, products, and rate parameters
 - **Reaction types**: Gas-phase reactions only (surface chemistry filtered out)
-- **Special features**: 
+- **Special features**:
   - Supports 3 reactants → 4 products
   - IONOPOL1/IONOPOL2 reactions use KIDA formulas
   - GAR (grain-assisted recombination) reactions
@@ -169,7 +169,7 @@ class MyFormatParser(BaseParser):
     def parse_network(self, filepath):
         # Implementation here
         pass
-    
+
     def parse_reaction(self, row):
         # Implementation here
         pass

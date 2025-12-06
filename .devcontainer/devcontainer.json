@@ -1,8 +1,8 @@
 {
-	"name": "Research-Container2",
+	"name": "Carbox-Container",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "app",
-	"workspaceFolder": "/workspace",
+	"workspaceFolder": "/workspace/carbox",
 
 	"customizations": {
 		"vscode": {
@@ -26,7 +26,7 @@
 			"settings": {
 				"terminal.integrated.defaultProfile.linux": "bash",
 				"editor.formatOnSave": false,
-				"python.defaultInterpreterPath": "/workspace/.venv/bin/python",
+				"python.defaultInterpreterPath": "/workspace/carbox/.venv/bin/python",
 				"python.linting.enabled": true,
 				"python.linting.ruffEnabled": true,
 				"[python]": {
@@ -41,7 +41,8 @@
 		}
 	},
 
-	"postCreateCommand": "python -m venv .venv && .venv/bin/pip install -r requirements.txt",
+	"postCreateCommand": "python3 -m venv .venv --system-site-packages --prompt carbox && .venv/bin/pip install -r requirements.txt",
 
-	"remoteUser": "researcher"
+	"remoteUser": "carbox"
 }
+

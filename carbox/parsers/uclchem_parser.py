@@ -37,8 +37,8 @@ class UCLCHEMParser(BaseParser):
     """Parser for UCLCHEM reaction format - gas-phase reactions only."""
 
     def __init__(self, cloud_radius_pc: float = 1.0, number_density: float = 1e4):  # noqa
-        super().__init__()
-        self.format_type = "uclchem"
+        format_type = "uclchem"
+        super().__init__(format_type)
 
         # Cloud geometry parameters for photoreaction shielding
         self.cloud_radius_pc = cloud_radius_pc

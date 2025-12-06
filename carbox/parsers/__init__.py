@@ -1,3 +1,5 @@
+"""Imports from all parsers."""
+
 from .base_parser import BaseParser
 from .latent_tgas_parser import LatentTGASParser
 from .uclchem_parser import UCLCHEMParser
@@ -12,5 +14,3 @@ __all__ = [
     "UnifiedChemicalParser",
     "parse_chemical_network",
 ]
-
-__all__ = ["UnifiedChemicalParser", "BaseParser", "UCLCHEMParser"]

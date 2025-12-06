@@ -1,21 +1,23 @@
+"""Using the Carbox parser for parsing the latent_tgas network."""
+
 import pandas as pd
 
 from ..network import Network
-from ..reactions import CRPReaction, FUVReaction, KAReaction
+from ..reactions import CRPReaction, FUVReaction, KAReaction, Reaction
 from ..species import Species
 from .base_parser import BaseParser
 
 
 class LatentTGASParser(BaseParser):
-    """Parser for latent_tgas reaction format - adapted from existing parser_latent_tgas.py
+    """Parser for latent_tgas reaction format - adapted from existing parser_latent_tgas.py.
 
     This is a legacy adapter to integrate the existing latent_tgas parser
     with the unified parser architecture.
     """
 
-    def __init__(self):
-        super().__init__()
-        self.format_type = "latent_tgas"
+    def __init__(self):  # noqa
+        format_type = "latent_tgas"
+        super().__init__(format_type)
 
         # latent_tgas uses simplified 2-reactant → 2-product format
         self.expected_columns = [
@@ -30,7 +32,7 @@ class LatentTGASParser(BaseParser):
         ]
 
     def parse_network(self, filepath: str) -> Network:
-        """Parse latent_tgas reactions file and return Network"""
+        """Parse latent_tgas reactions file and return Network."""
         # Read CSV file
         df = pd.read_csv(filepath)
 
@@ -51,8 +53,8 @@ class LatentTGASParser(BaseParser):
         # Create network
         return Network(species, reactions, use_sparse=True, vectorize_reactions=True)
 
-    def parse_reaction(self, row) -> KAReaction | None:
-        """Parse a single latent_tgas reaction row"""
+    def parse_reaction(self, row) -> Reaction | None:
+        """Parse a single latent_tgas reaction row."""
         try:
             # Parse reactants and products (simplified 2→2 format)
             reactants = row.loc[["r1", "r2"]].dropna().tolist()

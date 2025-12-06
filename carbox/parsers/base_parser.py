@@ -1,3 +1,5 @@
+"""Base class Carbox parser for parsing chemical networks."""
+
 from abc import ABC, abstractmethod
 
 import pandas as pd
@@ -9,8 +11,8 @@ from ..reactions import Reaction
 class BaseParser(ABC):
     """Abstract base class for chemical network parsers."""
 
-    def __init__(self):
-        self.format_type = None
+    def __init__(self, format_type: str):  # noqa
+        self.format_type = format_type
 
     @abstractmethod
     def parse_network(self, filepath: str) -> Network:
