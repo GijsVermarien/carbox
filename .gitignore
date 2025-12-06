@@ -9,6 +9,8 @@ plugins
 .kilocode/
 .vscode/
 pyproject.toml
+
 .venv/
 data/
 benchmarks_cosmicai/
+output/

@@ -8,6 +8,7 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
+from jax import Array
 from jax.scipy.interpolate import RegularGridInterpolator
 
 # Constants from UCLCHEM (may need adjustment from constants/defaultparameters)
@@ -132,14 +133,14 @@ SCO_GRID = jnp.array(
 
 
 @partial(jax.jit, static_argnums=())
-def xlambda(wavelength: float) -> float:
+def xlambda(wavelength: float) -> Array:
     """Ratio of optical depth at wavelength to visual (Savage & Mathis 1979)."""
     lambda_clipped = jnp.clip(wavelength, LAMBDA_GRID[0], LAMBDA_GRID[-1])
     return jnp.interp(lambda_clipped, LAMBDA_GRID, XLAMBDA_GRID)
 
 
 @partial(jax.jit, static_argnums=())
-def scatter(wavelength: float, av: float) -> float:
+def scatter(wavelength: float, av: float) -> Array:
     """Dust scattering attenuation (Wagenblast & Hartquist 1989, g=0.8, ω=0.3)."""
     tv = av / 1.086
     tl = tv * xlambda(wavelength)
@@ -155,7 +156,7 @@ def scatter(wavelength: float, av: float) -> float:
 
 
 @partial(jax.jit, static_argnums=())
-def h2_self_shielding(nh2: float, doppler_width: float, rad_width: float) -> float:
+def h2_self_shielding(nh2: float, doppler_width: float, rad_width: float) -> Array:
     """H2 self-shielding (Federman, Glassgold & Kwan 1979)."""
     fpara = 0.5
     fosc = 1.0e-2
@@ -207,7 +208,7 @@ def h2_photo_diss_rate(
 
 
 @partial(jax.jit, static_argnums=())
-def lbar(nco: float, nh2: float) -> float:
+def lbar(nco: float, nh2: float) -> Array:
     """Mean wavelength of CO dissociating bands (van Dishoeck & Black 1988)."""
     lu = jnp.log10(jnp.abs(nco) + 1.0)
     lw = jnp.log10(jnp.abs(nh2) + 1.0)
@@ -222,7 +223,7 @@ def lbar(nco: float, nh2: float) -> float:
 
 
 @partial(jax.jit, static_argnums=())
-def co_self_shielding(nh2: float, nco: float) -> float:
+def co_self_shielding(nh2: float, nco: float) -> Array:
     """CO self-shielding (van Dishoeck & Black 1988)."""
     lognco = jnp.log10(nco + 1.0)
     lognh2 = jnp.log10(nh2 + 1.0)
@@ -261,8 +262,8 @@ def c_ionization_rate(
     nh2: float,
     av: float,
     rad_field: float,
-) -> float:
-    """Carbon photoionization rate. [alpha, gamma need UCLCHEM values]"""
+) -> Array:
+    """Carbon photoionization rate. [alpha, gamma need UCLCHEM values]."""
     tauc = gamma * av + 1.1e-17 * nc + 0.9 * gas_temp**0.27 * (nh2 / 1.59e21) ** 0.45
     return alpha * (rad_field / 1.7) * jnp.exp(-tauc)
 

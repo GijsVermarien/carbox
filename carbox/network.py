@@ -1,3 +1,5 @@
+"""Defines the chemical network composed of species and the reactions between them."""
+
 from dataclasses import dataclass
 from functools import partial
 
@@ -5,9 +7,8 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 from jax.experimental import sparse
-
-from .reactions import JReactionRateTerm, Reaction
-from .species import Species
+from reactions import JReactionRateTerm, Reaction
+from species import Species
 
 
 class JNetwork(eqx.Module):
@@ -78,6 +79,8 @@ class JNetwork(eqx.Module):
 
 @dataclass
 class Network:
+    """A full chemical network defined by the reactions between species."""
+
     species: list[Species]
     reactions: list[Reaction]
     incidence: jnp.ndarray
@@ -85,7 +88,13 @@ class Network:
     use_sparse: bool
     vectorize_reactions: bool
 
-    def __init__(self, species, reactions, use_sparse=True, vectorize_reactions=True):
+    def __init__(  # noqa
+        self,
+        species: list[Species],
+        reactions: list[Reaction],
+        use_sparse: bool = True,
+        vectorize_reactions: bool = True,
+    ) -> None:
         self.species = species  # S
         self.reactions = reactions  # R
         self.use_sparse = use_sparse
@@ -157,7 +166,7 @@ class Network:
 
     def get_index(self, species: str) -> int:
         """Get the index of a species in the network."""
-        return self.species.index(species)
+        return [sp.name for sp in self.species].index(species)
 
     def get_elemental_contents(self, elements=["C", "H", "O", "charge"]):
         """Get the elemental contents of the species in the network."""
@@ -246,7 +255,7 @@ class Network:
         self.jcreations = []
 
         # Import special reaction types that should not be vectorized
-        from .reactions import (
+        from .reactions.reactions import (
             CIonizationReaction,
             COPhotoDissReaction,
             H2PhotoDissReaction,

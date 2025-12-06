@@ -1,5 +1,4 @@
-"""
-Output management for simulation results.
+"""Output management for simulation results.
 
 Handles saving of abundance trajectories, derivatives, rates, and metadata.
 """
@@ -7,27 +6,25 @@ Handles saving of abundance trajectories, derivatives, rates, and metadata.
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import diffrax as dx
 import jax.numpy as jnp
 import pandas as pd
 
 from .config import SimulationConfig
-from .network import JNetwork, Network
+from .network import Network
 from .solver import SPY
 
 
 def prepare_output_directory(config: SimulationConfig) -> Path:
-    """
-    Create output directory if it doesn't exist.
+    """Create output directory if it doesn't exist.
 
     Parameters
     ----------
     config : SimulationConfig
         Configuration with output_dir
 
-    Returns
+    Returns:
     -------
     output_path : Path
         Path to output directory
@@ -42,8 +39,7 @@ def save_abundances(
     network: Network,
     config: SimulationConfig,
 ) -> Path:
-    """
-    Save abundance time series to CSV.
+    """Save abundance time series to CSV.
 
     Parameters
     ----------
@@ -54,12 +50,12 @@ def save_abundances(
     config : SimulationConfig
         Configuration
 
-    Returns
+    Returns:
     -------
     filepath : Path
         Path to saved file
 
-    Notes
+    Notes:
     -----
     Output format:
     - Columns: time, physical parameters, then species abundances
@@ -96,7 +92,7 @@ def save_abundances(
     df = pd.DataFrame(
         {
             "time_seconds": solution.ts,
-            "time_years": solution.ts / SPY,
+            "time_years": solution.ts / SPY,  # type:ignore
             "number_density": config.number_density,
             "temperature": config.temperature,
             "cr_rate": config.cr_rate,
@@ -107,7 +103,7 @@ def save_abundances(
 
     # Add species fractional abundances (relative to H nuclei)
     for i, name in enumerate(species_names):
-        df[name] = solution.ys[:, i] / n_h_nuclei
+        df[name] = solution.ys[:, i] / n_h_nuclei  # type:ignore
 
     filepath = output_path / f"{config.run_name}_abundances.csv"
     df.to_csv(filepath, index=False)
@@ -122,8 +118,7 @@ def save_derivatives(
     network: Network,
     config: SimulationConfig,
 ) -> Path:
-    """
-    Save time derivatives to CSV.
+    """Save time derivatives to CSV.
 
     Parameters
     ----------
@@ -136,7 +131,7 @@ def save_derivatives(
     config : SimulationConfig
         Configuration
 
-    Returns
+    Returns:
     -------
     filepath : Path
         Path to saved file
@@ -175,8 +170,7 @@ def save_reaction_rates(
     network: Network,
     config: SimulationConfig,
 ) -> Path:
-    """
-    Save reaction rates to CSV.
+    """Save reaction rates to CSV.
 
     Parameters
     ----------
@@ -189,7 +183,7 @@ def save_reaction_rates(
     config : SimulationConfig
         Configuration
 
-    Returns
+    Returns:
     -------
     filepath : Path
         Path to saved file
@@ -227,10 +221,9 @@ def save_metadata(
     config: SimulationConfig,
     network: Network,
     solution: dx.Solution,
-    computation_time: Optional[float] = None,
+    computation_time: float | None = None,
 ) -> Path:
-    """
-    Save simulation metadata to JSON.
+    """Save simulation metadata to JSON.
 
     Parameters
     ----------
@@ -243,12 +236,12 @@ def save_metadata(
     computation_time : float, optional
         Wall-clock time [s]
 
-    Returns
+    Returns:
     -------
     filepath : Path
         Path to saved file
 
-    Notes
+    Notes:
     -----
     Metadata includes:
     - Configuration parameters
@@ -317,8 +310,7 @@ def save_summary_report(
     network: Network,
     config: SimulationConfig,
 ) -> Path:
-    """
-    Save human-readable summary report.
+    """Save human-readable summary report.
 
     Parameters
     ----------
@@ -329,7 +321,7 @@ def save_summary_report(
     config : SimulationConfig
         Configuration
 
-    Returns
+    Returns:
     -------
     filepath : Path
         Path to saved file
@@ -374,7 +366,7 @@ def save_summary_report(
 
     # Final abundances (top 10)
     lines.append("Final Abundances (top 10):")
-    final_abundances = solution.ys[-1]
+    final_abundances = solution.ys[-1]  # type:ignore
     sorted_indices = jnp.argsort(final_abundances)[::-1]
     for i in range(min(10, len(sorted_indices))):
         idx = sorted_indices[i]
