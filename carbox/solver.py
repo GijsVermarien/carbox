@@ -47,73 +47,6 @@ def get_solver(solver_name: str):
     return solvers[solver_name.lower()]()
 
 
-def solve_network(
-    jnetwork: JNetwork,
-    y0: jnp.ndarray,
-    config: SimulationConfig,
-) -> dx.Solution:
-    """Solve chemical network ODE system.
-
-    Parameters
-    ----------
-    jnetwork : JNetwork
-        Compiled JAX network with reaction rates
-    y0 : jnp.ndarray
-        Initial abundance vector [cm^-3]
-    config : SimulationConfig
-        Configuration with solver and physical parameters
-
-    Returns:
-    -------
-    solution : diffrax.Solution
-        Integration results with:
-        - ts: time array [s]
-        - ys: abundance array [n_snapshots, n_species]
-        - stats: solver statistics
-
-    Notes:
-    -----
-    - Uses logarithmic time sampling for astrophysical timescales
-    - Physical parameters passed as args to ODE function
-    - JIT compiled for performance (first call compiles)
-    - Stiff solver (Kvaerno5) recommended for chemistry
-    """
-    # Get physical parameters as JAX arrays
-    params = config.get_physical_params_jax()
-
-    # Time sampling (log-spaced in years)
-    # Create log-spaced times with manual 0th timestep
-    if config.t_start <= 0:
-        # Start from very small value for log spacing (excluding t=0)
-        # This captures early chemistry evolution
-        t_start_log = -9  # 10^-9 years (~31.5 microseconds)
-        t_log = jnp.logspace(
-            t_start_log, jnp.log10(config.t_end), config.n_snapshots - 1
-        )
-        # Prepend t=0 as the 0th timestep
-        t_snapshots = jnp.concatenate([jnp.array([0.0]), t_log])
-    else:
-        # If t_start > 0, still include it as the 0th timestep
-        t_log = jnp.logspace(
-            jnp.log10(config.t_start), jnp.log10(config.t_end), config.n_snapshots - 1
-        )
-        t_snapshots = jnp.concatenate([jnp.array([config.t_start]), t_log])
-
-    return solve_network_core(
-        jnetwork=jnetwork,
-        y0=y0,
-        t_eval=t_snapshots,
-        temperature=params["temperature"],
-        cr_rate=params["cr_rate"],
-        fuv_field=params["fuv_field"],
-        visual_extinction=params["visual_extinction"],
-        solver_name=config.solver,
-        atol=config.atol,
-        rtol=config.rtol,
-        max_steps=config.max_steps,
-    )
-
-
 def solve_network_core(
     jnetwork: JNetwork,
     y0: jnp.ndarray,
@@ -200,6 +133,73 @@ def solve_network_core(
     )
 
     return solution
+
+
+def solve_network(
+    jnetwork: JNetwork,
+    y0: jnp.ndarray,
+    config: SimulationConfig,
+) -> dx.Solution:
+    """Solve chemical network ODE system.
+
+    Parameters
+    ----------
+    jnetwork : JNetwork
+        Compiled JAX network with reaction rates
+    y0 : jnp.ndarray
+        Initial abundance vector [cm^-3]
+    config : SimulationConfig
+        Configuration with solver and physical parameters
+
+    Returns:
+    -------
+    solution : diffrax.Solution
+        Integration results with:
+        - ts: time array [s]
+        - ys: abundance array [n_snapshots, n_species]
+        - stats: solver statistics
+
+    Notes:
+    -----
+    - Uses logarithmic time sampling for astrophysical timescales
+    - Physical parameters passed as args to ODE function
+    - JIT compiled for performance (first call compiles)
+    - Stiff solver (Kvaerno5) recommended for chemistry
+    """
+    # Get physical parameters as JAX arrays
+    params = config.get_physical_params_jax()
+
+    # Time sampling (log-spaced in years)
+    # Create log-spaced times with manual 0th timestep
+    if config.t_start <= 0:
+        # Start from very small value for log spacing (excluding t=0)
+        # This captures early chemistry evolution
+        t_start_log = -9  # 10^-9 years (~31.5 microseconds)
+        t_log = jnp.logspace(
+            t_start_log, jnp.log10(config.t_end), config.n_snapshots - 1
+        )
+        # Prepend t=0 as the 0th timestep
+        t_snapshots = jnp.concatenate([jnp.array([0.0]), t_log])
+    else:
+        # If t_start > 0, still include it as the 0th timestep
+        t_log = jnp.logspace(
+            jnp.log10(config.t_start), jnp.log10(config.t_end), config.n_snapshots - 1
+        )
+        t_snapshots = jnp.concatenate([jnp.array([config.t_start]), t_log])
+
+    return solve_network_core(
+        jnetwork=jnetwork,
+        y0=y0,
+        t_eval=t_snapshots,
+        temperature=params["temperature"],
+        cr_rate=params["cr_rate"],
+        fuv_field=params["fuv_field"],
+        visual_extinction=params["visual_extinction"],
+        solver_name=config.solver,
+        atol=config.atol,
+        rtol=config.rtol,
+        max_steps=config.max_steps,
+    )
 
 
 def solve_network_batch(

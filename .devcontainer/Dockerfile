@@ -12,6 +12,15 @@ RUN apt-get update && apt-get install -y \
     && update-locale LANG=en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
+
+# Install Node.js 22.x LTS (includes npm)
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install @anthropic-ai/claude-code globally
+RUN npm install -g @google/gemini-cli
+
 # Set locale
 ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en

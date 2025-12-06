@@ -5,4 +5,5 @@ services:
             dockerfile: .devcontainer/Dockerfile
         volumes:
             - ..:/workspace:cached
+            - C:\Users\carlo\.gemini:/home/researcher/.gemini
         command: sleep infinity

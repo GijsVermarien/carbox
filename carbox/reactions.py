@@ -43,12 +43,14 @@ def valid_species_check(species):
 
 @dataclass
 class Reaction:
+    """Dataclass for invidiual reactions."""
+
     reaction_type: str
     reactants: list[str]
     products: list[str]
     molecularity: int
 
-    def __init__(self, reaction_type, reactants, products):
+    def __init__(self, reaction_type, reactants, products):  # noqa
         self.reactants = [r for r in reactants if valid_species_check(r)]
         self.products = [p for p in products if valid_species_check(p)]
         self.reaction_type = reaction_type
@@ -80,9 +82,9 @@ class KAReaction(Reaction):
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
         class KAReactionRateTerm(JReactionRateTerm):
-            alpha: float
-            beta: float
-            gamma: float
+            alpha: Array
+            beta: Array
+            gamma: Array
 
             def __call__(
                 self,
@@ -139,7 +141,7 @@ class CRPReaction(Reaction):
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
         class CRPReactionRateTerm(JReactionRateTerm):
-            alpha: float
+            alpha: Array
 
             def __call__(
                 self,
@@ -163,9 +165,9 @@ class CRPhotoReaction(Reaction):
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
         class CRPReactionRateTerm(JReactionRateTerm):
-            alpha: float
-            beta: float
-            gamma: float
+            alpha: Array
+            beta: Array
+            gamma: Array
 
             def __call__(
                 self,
@@ -200,7 +202,7 @@ class FUVReaction(Reaction):
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
         class FUVReactionRateTerm(JReactionRateTerm):
-            alpha: float
+            alpha: Array
 
             def __call__(
                 self,
@@ -223,8 +225,8 @@ class H2FormReaction(Reaction):
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
         class H2ReactionRateTerm(JReactionRateTerm):
-            alpha: float
-            gas2dust: float
+            alpha: Array
+            gas2dust: Array
 
             def __call__(
                 self,
@@ -300,27 +302,27 @@ class UCLCHEMH2FormReaction(Reaction):
     def _reaction_rate_factory(self) -> JReactionRateTerm:
         class UCLCHEMH2FormRateTerm(JReactionRateTerm):
             # Silicate parameters
-            silicate_mu: float
-            silicate_e_s: float
-            silicate_e_h2: float
-            silicate_e_hp: float
-            silicate_e_hc: float
-            silicate_nu_h2: float
-            silicate_nu_hc: float
-            silicate_cross_section: float
+            silicate_mu: Array
+            silicate_e_s: Array
+            silicate_e_h2: Array
+            silicate_e_hp: Array
+            silicate_e_hc: Array
+            silicate_nu_h2: Array
+            silicate_nu_hc: Array
+            silicate_cross_section: Array
 
             # Graphite parameters
-            graphite_mu: float
-            graphite_e_s: float
-            graphite_e_h2: float
-            graphite_e_hp: float
-            graphite_e_hc: float
-            graphite_nu_h2: float
-            graphite_nu_hc: float
-            graphite_cross_section: float
+            graphite_mu: Array
+            graphite_e_s: Array
+            graphite_e_h2: Array
+            graphite_e_hp: Array
+            graphite_e_hc: Array
+            graphite_nu_h2: Array
+            graphite_nu_hc: Array
+            graphite_cross_section: Array
 
-            hflux: float
-            alpha: float
+            hflux: Array
+            alpha: Array
 
             def __call__(
                 self,
@@ -457,9 +459,9 @@ class UCLCHEMPhotonReaction(Reaction):
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
         class UCLCHEMPhotonRateTerm(JReactionRateTerm):
-            alpha: float
-            beta: float
-            gamma: float
+            alpha: Array
+            beta: Array
+            gamma: Array
 
             def __call__(
                 self,
@@ -493,9 +495,9 @@ class UMISTPhotoReaction(Reaction):
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
         class PHReactionRateTerm(JReactionRateTerm):
-            alpha: float
-            beta: float
-            gamma: float
+            alpha: Array
+            beta: Array
+            gamma: Array
 
             def __call__(
                 self,
@@ -526,9 +528,9 @@ class IonPol1Reaction(Reaction):
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
         class IonPol1RateTerm(JReactionRateTerm):
-            alpha: float
-            beta: float
-            gamma: float
+            alpha: Array
+            beta: Array
+            gamma: Array
 
             def __call__(
                 self,
@@ -562,9 +564,9 @@ class IonPol2Reaction(Reaction):
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
         class IonPol2RateTerm(JReactionRateTerm):
-            alpha: float
-            beta: float
-            gamma: float
+            alpha: Array
+            beta: Array
+            gamma: Array
 
             def __call__(
                 self,
@@ -637,8 +639,8 @@ class H2PhotoDissReaction(Reaction):
         )
 
         class H2PhotoDissRateTerm(JReactionRateTerm):
-            cloud_radius_pc: float
-            turb_vel: float
+            cloud_radius_pc: Array
+            turb_vel: Array
             h2_species_index: int
 
             def __call__(
@@ -674,10 +676,10 @@ class COPhotoDissReaction(Reaction):
         reaction_type,
         reactants,
         products,
+        h2_species_index,
+        co_species_index,
         cloud_radius_pc=1.0,
         number_density=1e4,
-        h2_species_index=None,
-        co_species_index=None,
     ):
         super().__init__(reaction_type, reactants, products)
         self.cloud_radius_pc = cloud_radius_pc
@@ -692,7 +694,7 @@ class COPhotoDissReaction(Reaction):
         )
 
         class COPhotoDissRateTerm(JReactionRateTerm):
-            cloud_radius_pc: float
+            cloud_radius_pc: Array
             h2_species_index: int
             co_species_index: int
 
@@ -733,12 +735,12 @@ class CIonizationReaction(Reaction):
         reaction_type,
         reactants,
         products,
+        c_species_index,
+        h2_species_index,
         alpha=3.5e-10,
         gamma=3.0,
         cloud_radius_pc=1.0,
         number_density=1e4,
-        c_species_index=None,
-        h2_species_index=None,
     ):
         super().__init__(reaction_type, reactants, products)
         self.alpha = alpha
@@ -755,9 +757,9 @@ class CIonizationReaction(Reaction):
         )
 
         class CIonizationRateTerm(JReactionRateTerm):
-            alpha: float
-            gamma: float
-            cloud_radius_pc: float
+            alpha: Array
+            gamma: Array
+            cloud_radius_pc: Array
             c_species_index: int
             h2_species_index: int
 

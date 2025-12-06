@@ -12,8 +12,8 @@
 #     name: python3
 # ---
 
-import numpy as np 
 import jax.numpy as jnp
+import numpy as np
 import sympy as sp
 from sympy.parsing.sympy_parser import parse_expr
 
@@ -61,15 +61,16 @@ class Reaction:
 
     def __repr__(self):
         return f"reaction({self.reactants}, {self.products}, {self.tmin}, {self.tmax}, {self.rate_str})"
+
+
 reactions = [Reaction(*args) for args in load_network("../data/deuterated_clean.dat")]
 
-reactions;
+reactions
 
 
 # +
 def extract_operations(expr):
-    """
-    Extracts a list representing a sequential operation from a sympy expression,
+    """Extracts a list representing a sequential operation from a sympy expression,
     replacing numbers with dynamically generated variable names like float_a, float_b, etc.
     """
     operations = []
@@ -123,8 +124,7 @@ print(f"There are {len(unique_reactions)} unique reactions")
 
 
 def extract_operations(expr):
-    """
-    Extracts a list representing a sequential operation from a sympy expression,
+    """Extracts a list representing a sequential operation from a sympy expression,
     replacing numbers with dynamically generated variable names like float_a, float_b, etc.
     """
     operations = []
@@ -144,17 +144,14 @@ def extract_operations(expr):
         else:
             print(e.func, e.args)
             return (e.func, tuple(traverse(arg) for arg in e.args))
-                       
+
     operations = traverse(expr)
     float_mapping = {v: k for k, v in float_mapping.items()}
     return operations, float_mapping
 
 
-
 def evaluate_expression(expr, mapping):
-    """
-    Evaluates a sympy expression using a mapping of variable names to values.
-    """
+    """Evaluates a sympy expression using a mapping of variable names to values."""
     # print(expr, type(expr))
     if isinstance(expr, tuple):
         print("Path A", expr)
@@ -169,7 +166,9 @@ def evaluate_expression(expr, mapping):
         return expr[0](*[evaluate_expression(arg, mapping) for arg in expr[1]])
     else:
         print("Path C", expr)
-        return mapping.get(expr, expr)  # Return the value from mapping or the original expression
+        return mapping.get(
+            expr, expr
+        )  # Return the value from mapping or the original expression
 
 
 with sp.evaluate(False):
@@ -180,7 +179,3 @@ evaluate_expression(tree_expr, float_mapping)
 
 # Check round trip works:
 reactions[998].sympy_rate == evaluate_expression(tree_expr, float_mapping)
-
-
-
-
