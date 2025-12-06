@@ -3,17 +3,12 @@
 Generates plots and statistics for benchmarking.
 """
 
-import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.gridspec import GridSpec
-
-# Add paths
-sys.path.insert(0, str(Path(__file__).parent.parent / "runners"))
-from common import format_time, load_config
 
 
 def load_results(
@@ -163,7 +158,7 @@ def plot_comparison(
     uclchem_abund: np.ndarray,
     carbox_abund: np.ndarray,
     species: list[str],
-    output_file: str,
+    output_file: Path,
     title: str = "Abundance Comparison",
 ):
     """Create multi-panel comparison plot.
@@ -221,7 +216,7 @@ def plot_relative_differences(
     times: np.ndarray,
     rel_diff: np.ndarray,
     species: list[str],
-    output_file: str,
+    output_file: Path,
     title: str = "Relative Differences",
 ):
     """Plot relative differences over time.
@@ -234,7 +229,7 @@ def plot_relative_differences(
         Relative differences, shape (n_times, n_species)
     species : list
         Species names
-    output_file : str
+    output_file : Path
         Output PNG path
     title : str
         Plot title
@@ -276,7 +271,7 @@ def generate_statistics_report(
     uclchem_abund: np.ndarray,
     carbox_abund: np.ndarray,
     species: list[str],
-    output_file: str,
+    output_file: Path,
 ):
     """Generate text report with comparison statistics."""
     # Compute differences
@@ -333,7 +328,10 @@ def generate_statistics_report(
 
 
 def compare_abundances(
-    results_dir: str, network_name: str, output_dir: str = None, verbose: bool = True
+    results_dir: str,
+    network_name: str,
+    output_dir: str | None = None,
+    verbose: bool = True,
 ) -> dict:
     """Main comparison function.
 
@@ -392,7 +390,7 @@ def compare_abundances(
         uclchem_interp,
         carbox_interp,
         species,
-        output_path / f"{network_name}_comparison.png",
+        Path(output_path / f"{network_name}_comparison.png"),
         title=f"Abundance Comparison: {network_name}",
     )
 
@@ -408,7 +406,7 @@ def compare_abundances(
     # Generate statistics report
     if verbose:
         print("Generating statistics report...")
-    stats_file = output_path / f"{network_name}_statistics.txt"
+    stats_file = Path(output_path / f"{network_name}_statistics.txt")
     generate_statistics_report(
         times, uclchem_interp, carbox_interp, species, stats_file
     )

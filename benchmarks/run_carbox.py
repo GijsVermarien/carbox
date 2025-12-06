@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-"""
-Run Carbox benchmark for a specific network.
+"""Run Carbox benchmark for a specific network.
 
 Simplified standalone runner with hardcoded configurations.
 """
@@ -43,7 +41,6 @@ PHYSICAL_PARAMS = {
     "atol": 1.0e-30,
     "solver": "kvaerno5",  # lowercase required
     "max_steps": 65536,  # max steps, always use power of 16 (e.g., 4096, 65536)
-    
 }
 
 # Species to track (filter output)
@@ -84,8 +81,7 @@ NETWORK_CONFIGS = {
 
 
 def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: int = 1):
-    """
-    Run Carbox for specified network.
+    """Run Carbox for specified network.
 
     Parameters
     ----------
@@ -96,7 +92,7 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
     n_runs : int
         Number of times to run the simulation (for timing benchmarks)
 
-    Returns
+    Returns:
     -------
     dict
         Benchmark results
@@ -159,7 +155,7 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
         )
 
     # Load initial abundances (fractional)
-    with open(ic_file, "r") as f:
+    with open(ic_file) as f:
         yaml_data = yaml.safe_load(f)
         initial_abundances = yaml_data["abundances"]
 
@@ -189,12 +185,12 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
         save_abundances=True,
         initial_abundances=initial_abundances,
     )
-    
+
     # Print Av calculation details
     if config.use_self_consistent_av:
         computed_av = config.compute_visual_extinction()
-        PC_TO_CM = 3.086e18
-        cloud_radius_cm = config.cloud_radius_pc * PC_TO_CM
+        pc_to_cm = 3.086e18
+        cloud_radius_cm = config.cloud_radius_pc * pc_to_cm
         column_dens = cloud_radius_cm * config.number_density
         print("\n✓ Using self-consistent visual extinction:")
         print(f"  Cloud radius: {config.cloud_radius_pc:.4f} pc")
@@ -425,7 +421,7 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
         }
 
 
-def main():
+def main():  # noqa
     parser = argparse.ArgumentParser(
         description="Run Carbox benchmark",
         formatter_class=argparse.RawDescriptionHelpFormatter,

@@ -4,18 +4,18 @@ Generates timing and efficiency reports.
 """
 
 import json
-import sys
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
-# Add paths
-sys.path.insert(0, str(Path(__file__).parent.parent / "runners"))
-from common import format_time
+
+def format_time(str) -> str:  # noqa
+    return str
 
 
-def load_benchmark_results(results_dir: str, network_name: str) -> dict[str, dict]:
+def load_benchmark_results(results_dir: str, network_name: str) -> dict[str, Any]:
     """Load benchmark JSON files.
 
     Returns:
@@ -45,7 +45,10 @@ def load_benchmark_results(results_dir: str, network_name: str) -> dict[str, dic
 
 
 def generate_performance_report(
-    results_dir: str, network_name: str, output_file: str = None, verbose: bool = True
+    results_dir: str,
+    network_name: str,
+    output_file: Path | None = None,
+    verbose: bool = True,
 ) -> dict:
     """Generate performance comparison report.
 
@@ -55,7 +58,7 @@ def generate_performance_report(
         Directory with benchmark results
     network_name : str
         Network name
-    output_file : str
+    output_file : Path
         Output markdown file (default: comparisons/network_performance.md)
     verbose : bool
         Print progress
@@ -188,7 +191,10 @@ def generate_performance_report(
 
 
 def generate_multi_network_comparison(
-    results_dir: str, network_names: list, output_file: str = None, verbose: bool = True
+    results_dir: str,
+    network_names: list,
+    output_file: Path | None = None,
+    verbose: bool = True,
 ):
     """Generate comparison table across multiple networks.
 
@@ -198,7 +204,7 @@ def generate_multi_network_comparison(
         Directory with benchmark results
     network_names : list
         List of network names to compare
-    output_file : str
+    output_file : Path
         Output markdown file (default: comparisons/multi_network.md)
     verbose : bool
         Print progress

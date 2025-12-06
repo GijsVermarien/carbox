@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Run UCLCHEM benchmark for a specific network.
+"""Run UCLCHEM benchmark for a specific network.
 
 Simplified standalone runner with hardcoded configurations.
 """
@@ -29,8 +28,8 @@ PHYSICAL_PARAMS = {
     "writeStep": 1,  # Output every step
     "reltol": 1.0e-4,  # Relative tolerance
     "abstol_factor": 1.0e-10,  # Absolute tolerance factor
-    "rout": 1.0  # outer radius in pc
-} 
+    "rout": 1.0,  # outer radius in pc
+}
 
 # Hardcoded species to track
 OUTPUT_SPECIES = [
@@ -66,8 +65,7 @@ NETWORK_CONFIGS = {
 def run_uclchem(
     network_name: str, output_dir: str = "results/uclchem", n_runs: int = 1
 ):
-    """
-    Run UCLCHEM for specified network.
+    """Run UCLCHEM for specified network.
 
     Parameters
     ----------
@@ -78,7 +76,7 @@ def run_uclchem(
     n_runs : int
         Number of times to run the simulation (for timing benchmarks)
 
-    Returns
+    Returns:
     -------
     dict
         Benchmark results
