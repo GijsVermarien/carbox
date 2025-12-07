@@ -9,7 +9,7 @@ import jax.numpy as jnp
 from jax import Array
 from jax.experimental import sparse
 
-from .reactions.reactions import Reaction
+from .reactions import Reaction
 from .species import Species
 
 
@@ -62,11 +62,8 @@ class JNetwork(eqx.Module):
         cr_rate: Array,
         fuv_rate: Array,
         visual_extinction: Array,
-        abundance_floor: float = 1e-30,
     ) -> Array:
         # abundances = abundances * density
-        # Enforce abundance floor for rate calculations
-        abundances = jnp.maximum(abundances, abundance_floor)
 
         # Calculate the reaction rates (pass abundances for self-shielding reactions)
         rates = self.get_rates(
@@ -139,8 +136,6 @@ class Network:
 
     def compute_reactant_multipliers(self, incidence):
         """Compute reactant multipliers from dense incidence matrix."""
-        # In order to correctly get the flux, we need to multiply the rates per reaction
-        # by the abundances of the reactants. This is done by getting the indices of the
         # reactants that need to be multiplied by the abundances and ensure they are repeated
         # the correct number of times. Use double entries to avoid power in the computation.
         reactants_for_multiply = jnp.argwhere(incidence.T < 0)
