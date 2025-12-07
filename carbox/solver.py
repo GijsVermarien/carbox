@@ -59,6 +59,7 @@ def solve_network_core(
     atol: float = 1e-18,
     rtol: float = 1e-12,
     max_steps: int = 4096,
+    abundance_floor: float = 1e-30,
 ) -> dx.Solution:
     """Core ODE solver with raw JAX array parameters.
 
@@ -86,6 +87,8 @@ def solve_network_core(
         Relative tolerance
     max_steps : int
         Maximum integration steps
+    abundance_floor : float
+        Minimum abundance value
 
     Returns:
     -------
@@ -99,7 +102,7 @@ def solve_network_core(
     ode_term = dx.ODETerm(
         lambda t, y, args: jnetwork(
             t,
-            y,
+            jnp.clip(y, a_min=abundance_floor),
             args["temperature"],
             args["cr_rate"],
             args["fuv_field"],
@@ -199,6 +202,7 @@ def solve_network(
         atol=config.atol,
         rtol=config.rtol,
         max_steps=config.max_steps,
+        abundance_floor=config.abundance_floor,
     )
 
 
@@ -214,6 +218,7 @@ def solve_network_batch(
     atol: float = 1e-18,
     rtol: float = 1e-12,
     max_steps: int = 4096,
+    abundance_floor: float = 1e-30,
 ) -> dx.Solution:
     """Batch solve chemical network ODE system for parameter sweeps.
 
@@ -241,6 +246,8 @@ def solve_network_batch(
         Relative tolerance
     max_steps : int
         Maximum integration steps
+    abundance_floor : float
+        Minimum abundance value
 
     Returns:
     -------
@@ -249,7 +256,18 @@ def solve_network_batch(
     """
     return jax.vmap(
         lambda temp, cr, fuv, av: solve_network_core(
-            jnetwork, y0, t_eval, temp, cr, fuv, av, solver_name, atol, rtol, max_steps
+            jnetwork,
+            y0,
+            t_eval,
+            temp,
+            cr,
+            fuv,
+            av,
+            solver_name,
+            atol,
+            rtol,
+            max_steps,
+            abundance_floor,
         ),
         in_axes=(0, 0, 0, 0),
     )(temperatures, cr_rates, fuv_fields, visual_extinctions)

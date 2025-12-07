@@ -89,21 +89,24 @@ def save_abundances(
     n_h_nuclei = config.number_density
 
     # Create DataFrame with time and physical parameter columns
-    df = pd.DataFrame(
-        {
-            "time_seconds": solution.ts,
-            "time_years": solution.ts / SPY,  # type:ignore
-            "number_density": config.number_density,
-            "temperature": config.temperature,
-            "cr_rate": config.cr_rate,
-            "fuv_field": config.fuv_field,
-            "visual_extinction": config.compute_visual_extinction(),
-        }
-    )
+    data = {
+        "time_seconds": solution.ts,
+        "time_years": solution.ts / SPY,  # type:ignore
+        "number_density": config.number_density,
+        "temperature": config.temperature,
+        "cr_rate": config.cr_rate,
+        "fuv_field": config.fuv_field,
+        "visual_extinction": config.compute_visual_extinction(),
+    }
 
     # Add species fractional abundances (relative to H nuclei)
-    for i, name in enumerate(species_names):
-        df[name] = solution.ys[:, i] / n_h_nuclei  # type:ignore
+    if solution.ys is not None:
+        species_data = {
+            name: solution.ys[:, i] / n_h_nuclei for i, name in enumerate(species_names)
+        }
+        df = pd.DataFrame({**data, **species_data})
+    else:
+        df = pd.DataFrame(data)
 
     filepath = output_path / f"{config.run_name}_abundances.csv"
     df.to_csv(filepath, index=False)
@@ -141,21 +144,21 @@ def save_derivatives(
     species_names = [s.name for s in network.species]
 
     # Create DataFrame with time and physical parameter columns
-    df = pd.DataFrame(
-        {
-            "time_seconds": times,
-            "time_years": times / SPY,
-            "number_density": config.number_density,
-            "temperature": config.temperature,
-            "cr_rate": config.cr_rate,
-            "fuv_field": config.fuv_field,
-            "visual_extinction": config.compute_visual_extinction(),
-        }
-    )
+    data = {
+        "time_seconds": times,
+        "time_years": times / SPY,
+        "number_density": config.number_density,
+        "temperature": config.temperature,
+        "cr_rate": config.cr_rate,
+        "fuv_field": config.fuv_field,
+        "visual_extinction": config.compute_visual_extinction(),
+    }
 
     # Add derivatives
-    for i, name in enumerate(species_names):
-        df[f"d{name}_dt"] = derivatives[:, i]
+    derivatives_data = {
+        f"d{name}_dt": derivatives[:, i] for i, name in enumerate(species_names)
+    }
+    df = pd.DataFrame({**data, **derivatives_data})
 
     filepath = output_path / f"{config.run_name}_derivatives.csv"
     df.to_csv(filepath, index=False)
@@ -194,21 +197,19 @@ def save_reaction_rates(
     reaction_names = [f"{r.reaction_type}_{i}" for i, r in enumerate(network.reactions)]
 
     # Create DataFrame with time and physical parameter columns
-    df = pd.DataFrame(
-        {
-            "time_seconds": times,
-            "time_years": times / SPY,
-            "number_density": config.number_density,
-            "temperature": config.temperature,
-            "cr_rate": config.cr_rate,
-            "fuv_field": config.fuv_field,
-            "visual_extinction": config.visual_extinction,
-        }
-    )
+    data = {
+        "time_seconds": times,
+        "time_years": times / SPY,
+        "number_density": config.number_density,
+        "temperature": config.temperature,
+        "cr_rate": config.cr_rate,
+        "fuv_field": config.fuv_field,
+        "visual_extinction": config.visual_extinction,
+    }
 
     # Add reaction rates
-    for i, name in enumerate(reaction_names):
-        df[name] = rates[:, i]
+    rates_data = {name: rates[:, i] for i, name in enumerate(reaction_names)}
+    df = pd.DataFrame({**data, **rates_data})
 
     filepath = output_path / f"{config.run_name}_rates.csv"
     df.to_csv(filepath, index=False)

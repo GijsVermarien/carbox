@@ -3,7 +3,7 @@
 import jax.numpy as jnp
 from jax import Array
 
-from . import JReactionRateTerm, Reaction
+from .reactions import JReactionRateTerm, Reaction
 
 
 class FUVReaction(Reaction):

@@ -29,8 +29,8 @@ class UnifiedChemicalParser:
 
     def __init__(self):  # noqa
         self.parsers: dict[NetworkNames, type[BaseParser]] = {
-            NetworkNames.umist: UCLCHEMParser,
-            NetworkNames.uclchem: UMISTParser,
+            NetworkNames.umist: UMISTParser,
+            NetworkNames.uclchem: UCLCHEMParser,
             NetworkNames.latent_tgas: LatentTGASParser,
         }
 
@@ -57,16 +57,16 @@ class UnifiedChemicalParser:
             )
 
         parser_class = self.parsers[format_type]
-        parser = parser_class(format_type)
+        parser = parser_class(**kwargs)
 
-        return parser.parse_network(filepath, **kwargs)
+        return parser.parse_network(filepath)
 
     def _detect_format(self, filepath: str) -> NetworkNames:
         """Auto-detect file format based on filename and structure."""
         filename = os.path.basename(filepath).lower()
 
         # Format detection heuristics
-        if "uclchem" in filename or filename.endswith(".rates"):
+        if "uclchem" in filename:
             return NetworkNames.uclchem
         elif "umist" in filename:
             return NetworkNames.umist

@@ -6,9 +6,11 @@ from functools import partial
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+from jax import Array
 from jax.experimental import sparse
-from reactions import JReactionRateTerm, Reaction
-from species import Species
+
+from .reactions.reactions import JReactionRateTerm, Reaction
+from .species import Species
 
 
 class JNetwork(eqx.Module):
@@ -53,14 +55,14 @@ class JNetwork(eqx.Module):
     @partial(jax.profiler.annotate_function, name="JNetwork._call__")
     def __call__(
         self,
-        time: jnp.array,
-        abundances: jnp.array,
-        temperature: jnp.array,
+        time: Array,
+        abundances: Array,
+        temperature: Array,
         # density: jnp.array,
-        cr_rate: jnp.array,
-        fuv_rate: jnp.array,
-        visual_extinction: jnp.array,
-    ) -> jnp.array:
+        cr_rate: Array,
+        fuv_rate: Array,
+        visual_extinction: Array,
+    ) -> Array:
         # abundances = abundances * density
         # Calculate the reaction rates (pass abundances for self-shielding reactions)
         rates = self.get_rates(
@@ -83,7 +85,7 @@ class Network:
 
     species: list[Species]
     reactions: list[Reaction]
-    incidence: jnp.ndarray
+    incidence: jnp.ndarray | sparse.BCOO
     reactant_multipliers: jnp.ndarray
     use_sparse: bool
     vectorize_reactions: bool
@@ -250,12 +252,13 @@ class Network:
 
         return G
 
-    def get_ode(self):
+    def get_ode(self) -> JNetwork:
+        """Returns the jit compiled chemical network."""
         # Always reset the jreactions
-        self.jcreations = []
+        self.jreactions = []
 
         # Import special reaction types that should not be vectorized
-        from .reactions.reactions import (
+        from .reactions import (
             CIonizationReaction,
             COPhotoDissReaction,
             H2PhotoDissReaction,
@@ -296,11 +299,15 @@ class Network:
                 # The molecularity is infered from the number of reactants
                 del params["molecularity"]
                 vectorized_reaction = reaction_classes[reaction_type](**params)
-                self.jreactions.append(vectorized_reaction())
+                self.jreactions.append(vectorized_reaction)
 
             # Add non-vectorizable reactions individually
             for reaction in non_vectorizable_reactions:
-                self.jreactions.append(reaction())
+                self.jreactions.append(reaction)
         else:
-            self.jreactions = [reaction() for reaction in self.reactions]
-        return JNetwork(self.incidence, self.jreactions, self.reactant_multipliers)
+            self.jreactions = list(self.reactions)
+        return JNetwork(
+            self.incidence,
+            [jreaction() for jreaction in self.jreactions],
+            self.reactant_multipliers,
+        )
