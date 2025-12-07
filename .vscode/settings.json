@@ -1,0 +1,94 @@
+{
+  // --- Formatting ---
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "charliermarsh.ruff",
+
+  // --- Python-specific formatting & fixes ---
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit"
+    }
+  },
+
+  // --- Ruff settings ---
+  "ruff.enable": true,
+  "ruff.fixAll": true,
+  "ruff.organizeImports": true,
+
+  // --- Python environment ---
+  "python.defaultInterpreterPath": ".venv/bin/python",
+  "python.envFile": "${workspaceFolder}/.env",
+
+  // --- Working directory setup ---
+  "terminal.integrated.cwd": "${workspaceFolder}",
+  "python.testing.cwd": "${workspaceFolder}",
+  "python.analysis.extraPaths": [ "." ],
+
+  // --- Ensure PYTHONPATH points to project root ---
+  "terminal.integrated.env.windows": {
+    "PYTHONPATH": "${workspaceFolder}"
+  },
+  "terminal.integrated.env.linux": {
+    "PYTHONPATH": "${workspaceFolder}"
+  },
+  "terminal.integrated.env.osx": {
+    "PYTHONPATH": "${workspaceFolder}"
+  },
+
+  // --- Editor UX ---
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "editor.tabSize": 4,
+  "editor.rulers": [],
+  "editor.wordWrap": "on",
+  "workbench.editor.enablePreview": false,
+
+  // ✅ Enable the overview ruler & minimap markers
+  "editor.minimap.enabled": true,
+  "editor.overviewRulerBorder": true,
+  "problems.decorations.enabled": true,
+  "problems.autoReveal": true,
+
+  // --- Python & Jupyter ---
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.autoImportCompletions": true,
+  "jupyter.askForKernelRestart": false,
+  "jupyter.notebookFileRoot": "${workspaceFolder}",
+
+  // --- Testing ---
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true,
+  "python.testing.autoTestDiscoverOnSaveEnabled": true,
+
+  // --- IntelliSense speed ---
+  "python.analysis.completeFunctionParens": true,
+
+  // --- Auto-import and fixes ---
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.organizeImports": "explicit"
+  },
+
+  // --- Environment activation ---
+  "python.terminal.activateEnvironment": true,
+
+  // --- Docstring helper ---
+  "autoDocstring.docstringFormat": "google",
+  "autoDocstring.generateDocstringOnEnter": true,
+  "autoDocstring.startOnNewLine": true,
+  "autoDocstring.includeName": true,
+  "autoDocstring.includeExtendedSummary": false,
+
+  "notebook.formatOnSave.enabled": true,
+  "notebook.codeActionsOnSave": {
+    "notebook.source.fixAll": "explicit",
+    "notebook.source.organizeImports": "explicit"
+  },
+
+  // --- Hide ruff cache folder ---
+  "files.exclude": {
+    ".ruff_cache": true
+  }
+}
