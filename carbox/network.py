@@ -9,7 +9,7 @@ import jax.numpy as jnp
 from jax import Array
 from jax.experimental import sparse
 
-from .reactions.reactions import JReactionRateTerm, Reaction
+from .reactions.reactions import Reaction
 from .species import Species
 
 
@@ -17,7 +17,7 @@ class JNetwork(eqx.Module):
     """Jax Jit compiled Network."""
 
     incidence: jnp.ndarray
-    reactions: list[JReactionRateTerm]
+    reactions: list[Reaction]
     reactant_multipliers: jnp.ndarray
 
     def __init__(self, incidence, reactions, reactant_multipliers):
@@ -62,8 +62,12 @@ class JNetwork(eqx.Module):
         cr_rate: Array,
         fuv_rate: Array,
         visual_extinction: Array,
+        abundance_floor: float = 1e-30,
     ) -> Array:
         # abundances = abundances * density
+        # Enforce abundance floor for rate calculations
+        abundances = jnp.maximum(abundances, abundance_floor)
+
         # Calculate the reaction rates (pass abundances for self-shielding reactions)
         rates = self.get_rates(
             temperature, cr_rate, fuv_rate, visual_extinction, abundances
