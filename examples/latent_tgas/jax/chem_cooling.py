@@ -84,7 +84,7 @@ def cooling_H2(x, temp):
     # else:
     #     HDL = 5.531333679406485e-19
 
-    LDL =  x[idx_H] * jax.lax.cond(
+    LDL = x[idx_H] * jax.lax.cond(
         jnp.less_equal(temp, 1e2),
         # IF temp <= 1e2
         lambda _: 1e1
@@ -130,7 +130,7 @@ def cooling_H2(x, temp):
         ),
         None,
     )
-        
+
     # jax.debug.print("cooling {LDL}, {HDL}", LDL=LDL, HDL=HDL)
     return x[idx_H2] / (1e0 / (HDL + 1e-100) + 1e0 / (LDL + 1e-100))
     # cool =

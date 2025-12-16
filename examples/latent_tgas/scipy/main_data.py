@@ -33,8 +33,12 @@ y0[-1] = simulation_parameters["t_gas_init"]
 # The initial molecular hydrogen abundance
 y0[idx_H2] = simulation_parameters["number_density"]
 # The intial carbon and oxygen abundances
-y0[idx_O] = simulation_parameters["number_density"] * simulation_parameters["O_fraction"]
-y0[idx_C] = simulation_parameters["number_density"] * simulation_parameters["C_fraction"]
+y0[idx_O] = (
+    simulation_parameters["number_density"] * simulation_parameters["O_fraction"]
+)
+y0[idx_C] = (
+    simulation_parameters["number_density"] * simulation_parameters["C_fraction"]
+)
 
 # Cosmic ray ionisation rate and radiation field
 

@@ -8,13 +8,16 @@ from chem_commons import *
 @eqx.filter_jit
 def get_heating(x, tgas, cr_rate, gnot):
     rate_H2 = 5.68e-11 * gnot
-    heats = jnp.array([
-        cr_rate * (5.5e-12 * x[idx_H] + 2.5e-11 * x[idx_H2]),
-        get_photoelectric_heating(x, tgas, gnot),
-        6.4e-13 * rate_H2 * x[idx_H2],
-    ])
+    heats = jnp.array(
+        [
+            cr_rate * (5.5e-12 * x[idx_H] + 2.5e-11 * x[idx_H2]),
+            get_photoelectric_heating(x, tgas, gnot),
+            6.4e-13 * rate_H2 * x[idx_H2],
+        ]
+    )
 
     return jnp.sum(heats)
+
 
 @eqx.filter_jit
 def get_photoelectric_heating(x, tgas, gnot):
@@ -22,8 +25,6 @@ def get_photoelectric_heating(x, tgas, gnot):
     bet = 0.735e0 * tgas ** (-0.068)
 
     psi = gnot * jnp.sqrt(tgas) / (x[idx_E] + 1e-20)
-
-    
 
     # grains recombination cooling
     recomb_cool = 4.65e-30 * tgas**0.94 * psi**bet * x[idx_E] * x[idx_H]

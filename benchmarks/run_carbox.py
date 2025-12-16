@@ -43,7 +43,6 @@ PHYSICAL_PARAMS = {
     "atol": 1.0e-30,
     "solver": "kvaerno5",  # lowercase required
     "max_steps": 65536,  # max steps, always use power of 16 (e.g., 4096, 65536)
-    
 }
 
 # Species to track (filter output)
@@ -189,7 +188,7 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
         save_abundances=True,
         initial_abundances=initial_abundances,
     )
-    
+
     # Print Av calculation details
     if config.use_self_consistent_av:
         computed_av = config.compute_visual_extinction()

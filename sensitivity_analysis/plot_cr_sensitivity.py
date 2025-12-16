@@ -18,7 +18,7 @@ import scienceplots
 
 # Use scienceplots for publication-quality plots
 
-plt.style.use('science')
+plt.style.use("science")
 print("Using scienceplots styling")
 
 
@@ -78,17 +78,16 @@ def format_species_name(species):
     Converts H2 -> H$_2$, CH3OH -> CH$_3$OH, C+ -> C$^+$, etc.
     """
     import re
+
     # First handle charges (+ or -) -> superscript
-    formatted = re.sub(r'\+', r'$^+$', species)
-    formatted = re.sub(r'\-$', r'$^-$', formatted)
+    formatted = re.sub(r"\+", r"$^+$", species)
+    formatted = re.sub(r"\-$", r"$^-$", formatted)
     # Then handle digits -> subscript
-    formatted = re.sub(r'(\d+)', r'$_{\1}$', formatted)
+    formatted = re.sub(r"(\d+)", r"$_{\1}$", formatted)
     return formatted
 
 
-def plot_species_evolution(
-    zeta_values, abundances, species_list, output_file
-):
+def plot_species_evolution(zeta_values, abundances, species_list, output_file):
     """
     Plot species evolution (left) and final abundances (right).
     Left panel: Time evolution with gradient envelopes.
@@ -118,7 +117,7 @@ def plot_species_evolution(
     # Find zeta=1.0 or closest value for central line (this is zeta_0)
     zeta_0 = min(zeta_values, key=lambda x: abs(x - 1.0))
     print(f"  Using ζ₀ = {zeta_0:.2e} s⁻¹ for central lines")
-    
+
     # Calculate zeta ratios
     zeta_ratios = [z / zeta_0 for z in zeta_values]
 
@@ -152,17 +151,17 @@ def plot_species_evolution(
         # Create gradient effect using percentile bands
         n_bands = 10
         percentiles = np.linspace(0, 100, n_bands + 1)
-        
+
         for band_idx in range(n_bands):
             lower_perc = percentiles[band_idx]
             upper_perc = percentiles[band_idx + 1]
-            
+
             lower_band = np.percentile(all_abundances, lower_perc, axis=0)
             upper_band = np.percentile(all_abundances, upper_perc, axis=0)
-            
+
             # Stronger alpha gradient
             alpha_value = 0.08 + (band_idx / n_bands) * 0.27
-            
+
             ax1.fill_between(
                 time,
                 lower_band,
@@ -172,7 +171,7 @@ def plot_species_evolution(
                 linewidth=0,
                 zorder=idx + 0.01 * band_idx,
             )
-        
+
         # Add thin edge lines to outermost boundaries
         ax1.loglog(
             time,
@@ -192,11 +191,11 @@ def plot_species_evolution(
         )
 
     # Format left panel
-    ax1.set_xlabel('Time (years)', fontsize=13)
-    ax1.set_ylabel('Fractional Abundance $x_i$', fontsize=13)
+    ax1.set_xlabel("Time (years)", fontsize=13)
+    ax1.set_ylabel("Fractional Abundance $x_i$", fontsize=13)
     ax1.set_xlim(1.0, 1.0e7)
     ax1.set_ylim(1.0e-20, 1.0)
-    ax1.grid(True, alpha=0.3, which='both', linestyle=':')
+    ax1.grid(True, alpha=0.3, which="both", linestyle=":")
     ax1.legend(
         loc="best",
         framealpha=0.95,
@@ -206,12 +205,12 @@ def plot_species_evolution(
 
     # RIGHT PANEL: Final abundances vs zeta/zeta_0
     final_abundances = {sp: [] for sp in available_species}
-    
+
     for zeta in zeta_values:
         df = abundances[zeta]
         for species in available_species:
             final_abundances[species].append(df[species].iloc[-1])
-    
+
     for idx, species in enumerate(available_species):
         ax2.loglog(
             zeta_ratios,
@@ -223,20 +222,20 @@ def plot_species_evolution(
             color=colors[idx],
             alpha=0.8,
         )
-    
+
     # Format right panel
-    ax2.set_xlabel('$\\zeta/\\zeta_0$', fontsize=13)
-    ax2.set_ylabel('Final Fractional Abundance $x_i$', fontsize=13)
-    ax2.grid(True, alpha=0.3, which='both', linestyle=':')
+    ax2.set_xlabel("$\\zeta/\\zeta_0$", fontsize=13)
+    ax2.set_ylabel("Final Fractional Abundance $x_i$", fontsize=13)
+    ax2.grid(True, alpha=0.3, which="both", linestyle=":")
     ax2.legend(loc="best", framealpha=0.95, fontsize=10, frameon=True)
     ax2.set_ylim(1e-30, 1e0)
-    
+
     # Add reference line at zeta/zeta_0 = 1
     ax2.axvline(1.0, color="gray", linestyle="--", linewidth=1, alpha=0.5)
     ax2.text(
         1.0,
         ax2.get_ylim()[0] * 1.5,
-        '$\\zeta_0$',
+        "$\\zeta_0$",
         rotation=90,
         va="bottom",
         ha="right",

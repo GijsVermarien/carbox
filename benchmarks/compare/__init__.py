@@ -7,7 +7,7 @@ from .compare_performance import (
 )
 
 __all__ = [
-    'compare_abundances',
-    'generate_performance_report',
-    'generate_multi_network_comparison',
+    "compare_abundances",
+    "generate_performance_report",
+    "generate_multi_network_comparison",
 ]

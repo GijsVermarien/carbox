@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "carbox"
+version = "0.2.0"
+description = "Carbox: JAX-accelerated astrochemical kinetic reaction network simulator."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "GPL-3.0-or-later"
+authors = [
+  { name = "Carbox developers" },
+]
+keywords = ["astrochemistry", "chemical kinetics", "jax", "diffrax", "differentiable programming"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Physics",
+]
+
+dependencies = [
+  "jax>=0.4.20",
+  "jaxlib>=0.4.20",
+  "equinox>=0.11.0",
+  "diffrax>=0.4.0",
+  "numpy>=1.24.0",
+  "scipy>=1.10.0",
+  "pandas>=2.0.0",
+  "matplotlib>=3.7.0",
+  "tqdm>=4.65.0",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+benchmarks = [
+  "meson",
+  "ninja",
+  "uclchem; extra == 'benchmarks'",
+]
+dev = [
+  "pytest>=7.4",
+  "pre-commit>=3.6",
+  "ruff>=0.6.4",
+]
+
+[project.urls]
+Homepage = "https://github.com/gijsvermarien/carbox"
+Repository = "https://github.com/gijsvermarien/carbox"
+
+[project.scripts]
+carbox-sim = "carbox.main:main"
+
+[tool.setuptools.packages.find]
+include = ["carbox"]
+
+
