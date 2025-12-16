@@ -25,6 +25,13 @@ benchmarks, use the `benchmarks` extra:
 pip install .[benchmarks]
 ```
 
+For development (pre-commit + tests), use the `dev` extra:
+
+```bash
+pip install -e .[dev]
+pre-commit install
+```
+
 ## Python API
 
 A minimal end-to-end example that runs a network from a CSV file:
