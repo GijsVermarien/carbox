@@ -29,8 +29,8 @@ PHYSICAL_PARAMS = {
     "writeStep": 1,  # Output every step
     "reltol": 1.0e-4,  # Relative tolerance
     "abstol_factor": 1.0e-10,  # Absolute tolerance factor
-    "rout": 1.0  # outer radius in pc
-} 
+    "rout": 1.0,  # outer radius in pc
+}
 
 # Hardcoded species to track
 OUTPUT_SPECIES = [

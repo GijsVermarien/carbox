@@ -136,9 +136,7 @@ def run_single_zeta(
         jnetwork = network.get_ode()
 
         # Get initial state
-        y0 = jnp.array(
-            [initial_abundances.get(sp.name, 0.0) for sp in network.species]
-        )
+        y0 = jnp.array([initial_abundances.get(sp.name, 0.0) for sp in network.species])
 
         # Solve ODE
         solution = solve_network(jnetwork, y0, config)
@@ -260,10 +258,7 @@ def main():
         sys.exit(1)
 
     if not initial_conditions_file.exists():
-        print(
-            f"ERROR: Initial conditions not found: "
-            f"{initial_conditions_file}"
-        )
+        print(f"ERROR: Initial conditions not found: {initial_conditions_file}")
         print("\nGenerate with:")
         print("  cd benchmarks")
         print("  python run_uclchem.py --network gas_phase_only")
@@ -294,7 +289,7 @@ def main():
     print(f"\nRunning {args.n_zetas} simulations...")
 
     for i, zeta in enumerate(zeta_values):
-        print(f"\n[{i+1}/{args.n_zetas}] ζ = {zeta:.4e} s^-1", end="")
+        print(f"\n[{i + 1}/{args.n_zetas}] ζ = {zeta:.4e} s^-1", end="")
         if not args.verbose:
             print("...", end=" ", flush=True)
 
