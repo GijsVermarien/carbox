@@ -19,6 +19,7 @@ from carbox.parsers import UnifiedChemicalParser, parse_chemical_network
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+
 class TestUnifiedParsers:
     """Test suite for unified chemical network parsers"""
 
@@ -109,12 +110,12 @@ class TestUnifiedParsers:
                 network = parse_chemical_network(filepath)
 
                 # Should succeed and return a valid network
-                assert (
-                    len(network.species) > 0
-                ), f"Auto-detection failed for {filepath}: no species"
-                assert (
-                    len(network.reactions) > 0
-                ), f"Auto-detection failed for {filepath}: no reactions"
+                assert len(network.species) > 0, (
+                    f"Auto-detection failed for {filepath}: no species"
+                )
+                assert len(network.reactions) > 0, (
+                    f"Auto-detection failed for {filepath}: no reactions"
+                )
 
     def test_error_handling(self):
         """Test error handling for invalid inputs"""

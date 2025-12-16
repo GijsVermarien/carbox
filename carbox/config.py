@@ -136,10 +136,10 @@ class SimulationConfig:
     def compute_visual_extinction(self) -> float:
         """
         Compute self-consistent visual extinction from column density.
-        
+
         Formula: Av = base_Av + N_H / 1.6e21
         where N_H = cloud_radius_pc * number_density (converted to cm)
-        
+
         Returns
         -------
         float
@@ -147,24 +147,24 @@ class SimulationConfig:
         """
         if not self.use_self_consistent_av:
             return self.visual_extinction
-        
+
         # Convert parsec to cm: 1 pc = 3.086e18 cm
         PC_TO_CM = 3.086e18
         cloud_radius_cm = self.cloud_radius_pc * PC_TO_CM
-        
+
         # Column density: N_H = n_H * L [cm^-2]
         column_density = cloud_radius_cm * self.number_density
-        
+
         # Av = base_Av + N_H / 1.6e21
         av = self.base_av + column_density / 1.6e21
-        
+
         return av
 
     def get_physical_params_jax(self):
         """Get JAX arrays for physical parameters (for solver args)."""
         # Compute Av (either fixed or self-consistent)
         visual_extinction = self.compute_visual_extinction()
-        
+
         return {
             "temperature": jnp.array(self.temperature),
             "cr_rate": jnp.array(self.cr_rate),

@@ -27,5 +27,3 @@ __all__ = [
     "Network",
     "JNetwork",
 ]
-
-

@@ -72,5 +72,3 @@ def test_public_api_minimal_run(tmp_path, format_type):
     assert len(out_network.species) == len(network.species)
     assert len(out_network.reactions) == len(network.reactions)
     assert len(solution.ts) == config.n_snapshots
-
-
