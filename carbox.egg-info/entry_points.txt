@@ -1,0 +1,2 @@
+[console_scripts]
+carbox-sim = carbox.main:main
