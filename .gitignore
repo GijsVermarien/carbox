@@ -4,5 +4,6 @@ __pycache__
 .log
 .DS_Store
 plugins
-.venv
+venv/
 notes.md
+carbox.egg-info
