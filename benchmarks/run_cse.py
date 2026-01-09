@@ -10,6 +10,7 @@ import json
 import sys
 import time
 from pathlib import Path
+from datetime import datetime
 
 import jax
 import yaml
@@ -19,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from carbox.config import SimulationConfig
 from carbox.main import run_simulation
+from carbox.cse_physics import CSEPhysics
 
 # Enable JAX 64-bit and NaN debugging
 jax.config.update("jax_enable_x64", True)
@@ -26,22 +28,45 @@ jax.config.update("jax_debug_nans", True)
 
 
 # Hardcoded physical parameters (matching UCLCHEM test case)
+# PHYSICAL_PARAMS = {
+#     "number_density": 1.0e4,  # cm^-3
+#     "temperature": 250.0,  # K
+#     "cr_rate": 1.0,  # s^-1
+#     "fuv_field": 1.0,  # Habing units
+#     "visual_extinction": 2.9643750143703076,  # mag (used if not self-consistent)
+#     # Self-consistent Av calculation (optional)
+#     "use_self_consistent_av": True,  # Enable self-consistent Av
+#     "base_av": 2.0,  # Base Av before column density contribution
+#     "cloud_radius_pc": 1.0,
+#     "t_start": 0.0,  # years
+#     "t_end": 1e2,  # years
+#     "n_snapshots": 100,  # output timesteps (increased for detail)
+#     "rtol": 1.0e-5,
+#     "atol": 1.0e-25,
+#     "solver": "kvaerno5",  # lowercase required
+#     "max_steps": 65536,  # max steps, always use power of 16 (e.g., 4096, 65536)
+# }
+
+# Hardcoded physical parameters for the CSE outflow model
 PHYSICAL_PARAMS = {
-    "number_density": 1.0e4,  # cm^-3
-    "temperature": 250.0,  # K
     "cr_rate": 1.0,  # s^-1
     "fuv_field": 1.0,  # Habing units
-    "visual_extinction": 2.9643750143703076,  # mag (used if not self-consistent)
-    # Self-consistent Av calculation (optional)
-    "use_self_consistent_av": True,  # Enable self-consistent Av
-    "base_av": 2.0,  # Base Av before column density contribution
-    "cloud_radius_pc": 1.0,
-    "t_start": 0.0,  # years
-    "t_end": 5.0e6,  # years
-    "n_snapshots": 100,  # output timesteps (increased for detail)
-    "rtol": 1.0e-9,
-    "atol": 1.0e-30,
+
+    # CSE Outflow Parameters
+    "mdot": 1.0e-5,    # M_sun/yr
+    "vexp": 15.0,      # km/s
+    "tstar": 2000.0,   # K (Temperature at r_init)
+    "eps": 0.7,        # Temperature power law
+    "r_init": 1.0e14,  # cm
+    "r_final": 2.0e14, # cm
+
+    # Solver Parameters
+    "n_snapshots": 50,  # output timesteps (increased for detail)
+    "rtol": 1.0e-5,
+    "atol": 1.0e-25, # Relaxed from 1e-25
     "solver": "kvaerno5",  # lowercase required
+    "linear_solver" : "sparse",
+    # "solver": "tsit5",  # Explicit solver to avoid lineax TracerBoolConversionError
     "max_steps": 65536,  # max steps, always use power of 16 (e.g., 4096, 65536)
 }
 
@@ -79,6 +104,18 @@ NETWORK_CONFIGS = {
         "input_format": "uclchem",
         "initial_conditions": "initial_conditions/gas_phase_only_initial.yaml",
     },
+    "gas_phase_only_cse": {
+        "description": "Gas-phase only chemistry (~183 species)",
+        "input_file": "../data/uclchem_gas_phase_only.csv",
+        "input_format": "uclchem",
+        "initial_conditions": "initial_conditions/orich_cse_uclchem.yaml",
+    },
+    "orich_cse": {
+        "description": "UMIST Rate22 network with O-rich parent species",
+        "input_file": "../data/umist22.csv",
+        "input_format": "umist",
+        "initial_conditions": "initial_conditions/orich_cse_umist.yaml",
+    }
 }
 
 
@@ -112,27 +149,31 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
     print(f"{'=' * 70}")
     print(f"Description: {config_info['description']}")
     print("\nPhysical conditions:")
-    print(f"  Density: {PHYSICAL_PARAMS['number_density']:.2e} cm^-3")
-    print(f"  Temperature: {PHYSICAL_PARAMS['temperature']:.1f} K")
-    print(f"  Final time: {PHYSICAL_PARAMS['t_end']:.2e} years")
     print(f"  CR rate: {PHYSICAL_PARAMS['cr_rate']:.2e} s^-1")
-    if PHYSICAL_PARAMS.get("use_self_consistent_av", False):
-        cloud_radius = PHYSICAL_PARAMS.get("cloud_radius_pc", 1.0)
-        base_av = PHYSICAL_PARAMS.get("base_av", 0.0)
-        print(f"  Cloud radius: {cloud_radius:.4f} pc")
-        print(f"  Base Av: {base_av:.2f} mag")
-        print("  Av: self-consistent (computed from column density)")
-    else:
-        print(f"  Av: {PHYSICAL_PARAMS['visual_extinction']:.1f} mag")
+    print(f"  FUV rate: {PHYSICAL_PARAMS['fuv_field']:.2e} s^-1")
+    print(f"  Start radius: {PHYSICAL_PARAMS['r_init']:.2e} cm")
+    print(f"  Final radius: {PHYSICAL_PARAMS['r_final']:.2e} cm")
+
+    print("\nCSE Outflow Parameters:")
+    print(f"  Mass-loss rate (mdot): {PHYSICAL_PARAMS['mdot']:.2e} M_sun/yr")
+    print(f"  Expansion velocity (vexp): {PHYSICAL_PARAMS['vexp']:.1f} km/s")
+    print(f"  Initial radius (r_init): {PHYSICAL_PARAMS['r_init']:.2e} cm")
+    print(f"  Final radius (r_final): {PHYSICAL_PARAMS['r_final']:.2e} cm")
+    print(f"  Initial temperature (tstar): {PHYSICAL_PARAMS['tstar']:.1f} K")
+    print(f"  Temperature exponent (eps): {PHYSICAL_PARAMS['eps']:.2f}")
+
     print("\nNetwork:")
     print(f"  File: {config_info['input_file']}")
     print(f"  Format: {config_info['input_format']}")
+
     print("\nSolver settings:")
     print(f"  Solver: {PHYSICAL_PARAMS['solver']}")
     print(f"  rtol: {PHYSICAL_PARAMS['rtol']:.2e}")
     print(f"  atol: {PHYSICAL_PARAMS['atol']:.2e}")
     print(f"  max_steps: {PHYSICAL_PARAMS['max_steps']}")
+
     print("\nStarting integration...")
+    print(f"Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     # Setup output directory
     output_path = Path(output_dir)
@@ -166,19 +207,40 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
     print(f"  Species: {len(initial_abundances)}")
     print("  Source: UCLCHEM extraction (fractional abundances)")
 
+    # Initialize CSE Physics to get initial conditions and time range
+    physics = CSEPhysics(
+        mdot=PHYSICAL_PARAMS["mdot"],
+        vexp=PHYSICAL_PARAMS["vexp"],
+        t_star=PHYSICAL_PARAMS["tstar"],
+        r_init=PHYSICAL_PARAMS["r_init"],
+        eps=PHYSICAL_PARAMS["eps"],
+    )
+
+    # Calculate time range from radii
+    SPY = 3600.0 * 24 * 365.0
+    v_cgs = PHYSICAL_PARAMS["vexp"] * 1.0e5
+    t_start_sec = 0.0
+    t_end_sec = (PHYSICAL_PARAMS["r_final"] - PHYSICAL_PARAMS["r_init"]) / v_cgs
+    t_start_yr = t_start_sec / SPY
+    t_end_yr = t_end_sec / SPY
+    print(f"  Time range: {t_start_yr:.2e} to {t_end_yr:.2e} years")
+
+    # Get initial number density from the physics model at t=0
+    initial_n, _, _, _ = physics.get_conditions(t_sec=t_start_sec)
+    print(f"\n✓ Initial density at r_init: {initial_n:.2e} cm^-3")
+
     # Build SimulationConfig
     config = SimulationConfig(
-        number_density=PHYSICAL_PARAMS["number_density"],
-        temperature=PHYSICAL_PARAMS["temperature"],
+        # Use initial conditions from physics model
+        number_density=float(initial_n),
+        temperature=PHYSICAL_PARAMS["tstar"],
         cr_rate=PHYSICAL_PARAMS["cr_rate"],
         fuv_field=PHYSICAL_PARAMS["fuv_field"],
-        visual_extinction=PHYSICAL_PARAMS["visual_extinction"],
-        use_self_consistent_av=PHYSICAL_PARAMS.get("use_self_consistent_av", False),
-        cloud_radius_pc=PHYSICAL_PARAMS.get("cloud_radius_pc", 1.0),
-        base_av=PHYSICAL_PARAMS.get("base_av", 0.0),
-        t_start=PHYSICAL_PARAMS["t_start"],
-        t_end=PHYSICAL_PARAMS["t_end"],
+        # Time settings
+        t_start=t_start_yr,
+        t_end=t_end_yr,
         n_snapshots=PHYSICAL_PARAMS["n_snapshots"],
+        # Solver settings
         rtol=PHYSICAL_PARAMS["rtol"],
         atol=PHYSICAL_PARAMS["atol"],
         solver=PHYSICAL_PARAMS["solver"],
@@ -189,21 +251,8 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
         initial_abundances=initial_abundances,
     )
 
-    # Print Av calculation details
-    if config.use_self_consistent_av:
-        computed_av = config.compute_visual_extinction()
-        PC_TO_CM = 3.086e18
-        cloud_radius_cm = config.cloud_radius_pc * PC_TO_CM
-        column_dens = cloud_radius_cm * config.number_density
-        print("\n✓ Using self-consistent visual extinction:")
-        print(f"  Cloud radius: {config.cloud_radius_pc:.4f} pc")
-        print(f"  Column density: {column_dens:.3e} cm^-2")
-        print(f"  Base Av: {config.base_av:.2f} mag")
-        print(f"  Computed Av: {computed_av:.4f} mag")
-    else:
-        av = config.visual_extinction
-        print(f"\n✓ Using fixed visual extinction: {av:.4f} mag")
-
+    # Attach the fully configured physics model to the config object
+    config.physics_model = physics
     # Resolve input file path
     input_file = Path(__file__).parent / config_info["input_file"]
     if not input_file.exists():

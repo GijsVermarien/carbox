@@ -1,0 +1,1137 @@
+- index: 0
+  reaction: C -> C+ + E-
+  type: CRP
+- index: 1
+  reaction: CO -> CO+ + E-
+  type: CRP
+- index: 2
+  reaction: H -> H+ + E-
+  type: CRP
+- index: 3
+  reaction: H2 -> H+ + H + E-
+  type: CRP
+- index: 4
+  reaction: H2 -> H2+ + E-
+  type: CRP
+- index: 5
+  reaction: H2 -> H + H
+  type: CRP
+- index: 6
+  reaction: HE -> HE+ + E-
+  type: CRP
+- index: 7
+  reaction: O -> O+ + E-
+  type: CRP
+- index: 8
+  reaction: C -> C+ + E-
+  type: CRPHOT
+- index: 9
+  reaction: CH -> C + H
+  type: CRPHOT
+- index: 10
+  reaction: CH -> CH+ + E-
+  type: CRPHOT
+- index: 11
+  reaction: CH+ -> C+ + H
+  type: CRPHOT
+- index: 12
+  reaction: CH2 -> CH2+ + E-
+  type: CRPHOT
+- index: 13
+  reaction: CH2 -> CH + H
+  type: CRPHOT
+- index: 14
+  reaction: CH2+ -> C+ + H2
+  type: CRPHOT
+- index: 15
+  reaction: CH2+ -> CH+ + H
+  type: CRPHOT
+- index: 16
+  reaction: CH2+ -> CH + H+
+  type: CRPHOT
+- index: 17
+  reaction: CH3 -> CH3+ + E-
+  type: CRPHOT
+- index: 18
+  reaction: CH3 -> CH2 + H
+  type: CRPHOT
+- index: 19
+  reaction: CH3 -> CH + H2
+  type: CRPHOT
+- index: 20
+  reaction: CH4 -> CH2 + H2
+  type: CRPHOT
+- index: 21
+  reaction: CH4 -> CH4+ + E-
+  type: CRPHOT
+- index: 22
+  reaction: CH4+ -> CH2+ + H2
+  type: CRPHOT
+- index: 23
+  reaction: CH4+ -> CH3+ + H
+  type: CRPHOT
+- index: 24
+  reaction: CO -> O + C
+  type: CRPHOT
+- index: 25
+  reaction: CO+ -> C+ + O
+  type: CRPHOT
+- index: 26
+  reaction: H2+ -> H+ + H
+  type: CRPHOT
+- index: 27
+  reaction: H2O -> OH + H
+  type: CRPHOT
+- index: 28
+  reaction: H2O -> H2O+ + E-
+  type: CRPHOT
+- index: 29
+  reaction: HCO -> CO + H
+  type: CRPHOT
+- index: 30
+  reaction: HCO -> HCO+ + E-
+  type: CRPHOT
+- index: 31
+  reaction: MG -> MG+ + E-
+  type: CRPHOT
+- index: 32
+  reaction: O -> O+ + E-
+  type: CRPHOT
+- index: 33
+  reaction: O2 -> O2+ + E-
+  type: CRPHOT
+- index: 34
+  reaction: O2 -> O + O
+  type: CRPHOT
+- index: 35
+  reaction: O2+ -> O+ + O
+  type: CRPHOT
+- index: 36
+  reaction: OH -> O + H
+  type: CRPHOT
+- index: 37
+  reaction: OH+ -> O+ + H
+  type: CRPHOT
+- index: 38
+  reaction: H + H -> H2
+  type: H2FORM
+- index: 39
+  reaction: CH -> C + H
+  type: PHOTON
+- index: 40
+  reaction: CH -> CH+ + E-
+  type: PHOTON
+- index: 41
+  reaction: CH+ -> C + H+
+  type: PHOTON
+- index: 42
+  reaction: CH2 -> CH2+ + E-
+  type: PHOTON
+- index: 43
+  reaction: CH2 -> CH + H
+  type: PHOTON
+- index: 44
+  reaction: CH2+ -> C+ + H2
+  type: PHOTON
+- index: 45
+  reaction: CH2+ -> CH+ + H
+  type: PHOTON
+- index: 46
+  reaction: CH2+ -> CH + H+
+  type: PHOTON
+- index: 47
+  reaction: CH3 -> CH2 + H
+  type: PHOTON
+- index: 48
+  reaction: CH3 -> CH + H2
+  type: PHOTON
+- index: 49
+  reaction: CH3 -> CH3+ + E-
+  type: PHOTON
+- index: 50
+  reaction: CH3+ -> CH+ + H2
+  type: PHOTON
+- index: 51
+  reaction: CH3+ -> CH2+ + H
+  type: PHOTON
+- index: 52
+  reaction: CH4 -> CH2 + H2
+  type: PHOTON
+- index: 53
+  reaction: CH4 -> CH3 + H
+  type: PHOTON
+- index: 54
+  reaction: CH4 -> CH + H2 + H
+  type: PHOTON
+- index: 55
+  reaction: CH4 -> CH4+ + E-
+  type: PHOTON
+- index: 56
+  reaction: CH4+ -> CH2+ + H2
+  type: PHOTON
+- index: 57
+  reaction: CH4+ -> CH3+ + H
+  type: PHOTON
+- index: 58
+  reaction: CO+ -> C+ + O
+  type: PHOTON
+- index: 59
+  reaction: H2+ -> H+ + H
+  type: PHOTON
+- index: 60
+  reaction: H2O -> H2O+ + E-
+  type: PHOTON
+- index: 61
+  reaction: H2O -> OH + H
+  type: PHOTON
+- index: 62
+  reaction: H2O+ -> OH+ + H
+  type: PHOTON
+- index: 63
+  reaction: HCO -> CO + H
+  type: PHOTON
+- index: 64
+  reaction: HCO -> HCO+ + E-
+  type: PHOTON
+- index: 65
+  reaction: HCO+ -> CO+ + H
+  type: PHOTON
+- index: 66
+  reaction: MG -> MG+ + E-
+  type: PHOTON
+- index: 67
+  reaction: O2 -> O2+ + E-
+  type: PHOTON
+- index: 68
+  reaction: O2 -> O + O
+  type: PHOTON
+- index: 69
+  reaction: O2+ -> O+ + O
+  type: PHOTON
+- index: 70
+  reaction: OH -> O + H
+  type: PHOTON
+- index: 71
+  reaction: OH -> OH+ + E-
+  type: PHOTON
+- index: 72
+  reaction: OH+ -> O+ + H
+  type: PHOTON
+- index: 73
+  reaction: C + CO+ -> CO + C+
+  type: TWOBODY
+- index: 74
+  reaction: C + O2+ -> O2 + C+
+  type: TWOBODY
+- index: 75
+  reaction: C + CH5+ -> CH4 + CH+
+  type: TWOBODY
+- index: 76
+  reaction: C + H2O+ -> OH + CH+
+  type: TWOBODY
+- index: 77
+  reaction: C + H3O+ -> HCO+ + H2
+  type: TWOBODY
+- index: 78
+  reaction: C + O2+ -> CO+ + O
+  type: TWOBODY
+- index: 79
+  reaction: C + OH+ -> O + CH+
+  type: TWOBODY
+- index: 80
+  reaction: C + CH2 -> CH + CH
+  type: TWOBODY
+- index: 81
+  reaction: C + HCO -> CO + CH
+  type: TWOBODY
+- index: 82
+  reaction: C + O2 -> CO + O
+  type: TWOBODY
+- index: 83
+  reaction: C + OH -> CO + H
+  type: TWOBODY
+- index: 84
+  reaction: C + OH -> O + CH
+  type: TWOBODY
+- index: 85
+  reaction: C + O+ -> CO+
+  type: TWOBODY
+- index: 86
+  reaction: C + O -> CO
+  type: TWOBODY
+- index: 87
+  reaction: C+ + CH2 -> CH2+ + C
+  type: TWOBODY
+- index: 88
+  reaction: C+ + CH -> CH+ + C
+  type: TWOBODY
+- index: 89
+  reaction: C+ + HCO -> HCO+ + C
+  type: TWOBODY
+- index: 90
+  reaction: C+ + MG -> MG+ + C
+  type: TWOBODY
+- index: 91
+  reaction: C+ + H2O -> HCO+ + H
+  type: TWOBODY
+- index: 92
+  reaction: C+ + HCO -> CO + CH+
+  type: TWOBODY
+- index: 93
+  reaction: C+ + O2 -> CO+ + O
+  type: TWOBODY
+- index: 94
+  reaction: C+ + O2 -> CO + O+
+  type: TWOBODY
+- index: 95
+  reaction: C+ + OH -> CO+ + H
+  type: TWOBODY
+- index: 96
+  reaction: C+ + O -> CO+
+  type: TWOBODY
+- index: 97
+  reaction: C+ + E- -> C
+  type: TWOBODY
+- index: 98
+  reaction: CH + O -> HCO+ + E-
+  type: TWOBODY
+- index: 99
+  reaction: CH + CO+ -> CO + CH+
+  type: TWOBODY
+- index: 100
+  reaction: CH + H2O+ -> H2O + CH+
+  type: TWOBODY
+- index: 101
+  reaction: CH + O+ -> O + CH+
+  type: TWOBODY
+- index: 102
+  reaction: CH + O2+ -> O2 + CH+
+  type: TWOBODY
+- index: 103
+  reaction: CH + OH+ -> OH + CH+
+  type: TWOBODY
+- index: 104
+  reaction: CH + CH5+ -> CH4 + CH2+
+  type: TWOBODY
+- index: 105
+  reaction: CH + CO+ -> HCO+ + C
+  type: TWOBODY
+- index: 106
+  reaction: CH + H2O+ -> OH + CH2+
+  type: TWOBODY
+- index: 107
+  reaction: CH + H3O+ -> H2O + CH2+
+  type: TWOBODY
+- index: 108
+  reaction: CH + HCO+ -> CO + CH2+
+  type: TWOBODY
+- index: 109
+  reaction: CH + O+ -> CO+ + H
+  type: TWOBODY
+- index: 110
+  reaction: CH + O2+ -> HCO+ + O
+  type: TWOBODY
+- index: 111
+  reaction: CH + OH+ -> O + CH2+
+  type: TWOBODY
+- index: 112
+  reaction: CH + HCO -> CO + CH2
+  type: TWOBODY
+- index: 113
+  reaction: CH + O2 -> CO + O + H
+  type: TWOBODY
+- index: 114
+  reaction: CH + O2 -> CO + OH
+  type: TWOBODY
+- index: 115
+  reaction: CH + O2 -> HCO + O
+  type: TWOBODY
+- index: 116
+  reaction: CH + O -> CO + H
+  type: TWOBODY
+- index: 117
+  reaction: CH + O -> OH + C
+  type: TWOBODY
+- index: 118
+  reaction: CH + OH -> HCO + H
+  type: TWOBODY
+- index: 119
+  reaction: CH+ + HCO -> HCO+ + CH
+  type: TWOBODY
+- index: 120
+  reaction: CH+ + MG -> MG+ + CH
+  type: TWOBODY
+- index: 121
+  reaction: CH+ + E- -> C + H
+  type: TWOBODY
+- index: 122
+  reaction: CH+ + H2O -> H3O+ + C
+  type: TWOBODY
+- index: 123
+  reaction: CH+ + H2O -> HCO+ + H2
+  type: TWOBODY
+- index: 124
+  reaction: CH+ + HCO -> CO + CH2+
+  type: TWOBODY
+- index: 125
+  reaction: CH+ + O2 -> CO+ + OH
+  type: TWOBODY
+- index: 126
+  reaction: CH+ + O2 -> HCO+ + O
+  type: TWOBODY
+- index: 127
+  reaction: CH+ + O2 -> HCO + O+
+  type: TWOBODY
+- index: 128
+  reaction: CH+ + O -> CO+ + H
+  type: TWOBODY
+- index: 129
+  reaction: CH+ + OH -> CO+ + H2
+  type: TWOBODY
+- index: 130
+  reaction: CH2 + CO+ -> CO + CH2+
+  type: TWOBODY
+- index: 131
+  reaction: CH2 + H2O+ -> H2O + CH2+
+  type: TWOBODY
+- index: 132
+  reaction: CH2 + O+ -> O + CH2+
+  type: TWOBODY
+- index: 133
+  reaction: CH2 + O2+ -> O2 + CH2+
+  type: TWOBODY
+- index: 134
+  reaction: CH2 + OH+ -> OH + CH2+
+  type: TWOBODY
+- index: 135
+  reaction: CH2 + CH5+ -> CH4 + CH3+
+  type: TWOBODY
+- index: 136
+  reaction: CH2 + CO+ -> HCO+ + CH
+  type: TWOBODY
+- index: 137
+  reaction: CH2 + H2O+ -> OH + CH3+
+  type: TWOBODY
+- index: 138
+  reaction: CH2 + H3O+ -> H2O + CH3+
+  type: TWOBODY
+- index: 139
+  reaction: CH2 + HCO+ -> CO + CH3+
+  type: TWOBODY
+- index: 140
+  reaction: CH2 + OH+ -> O + CH3+
+  type: TWOBODY
+- index: 141
+  reaction: CH2 + CH4 -> CH3 + CH3
+  type: TWOBODY
+- index: 142
+  reaction: CH2 + HCO -> CO + CH3
+  type: TWOBODY
+- index: 143
+  reaction: CH2 + O2 -> CO + H2O
+  type: TWOBODY
+- index: 144
+  reaction: CH2 + O2 -> HCO + OH
+  type: TWOBODY
+- index: 145
+  reaction: CH2 + O -> CO + H2
+  type: TWOBODY
+- index: 146
+  reaction: CH2 + O -> CO + H + H
+  type: TWOBODY
+- index: 147
+  reaction: CH2 + O -> HCO + H
+  type: TWOBODY
+- index: 148
+  reaction: CH2 + OH -> H2O + CH
+  type: TWOBODY
+- index: 149
+  reaction: CH2 + OH -> O + CH3
+  type: TWOBODY
+- index: 150
+  reaction: CH2+ + E- -> C + H2
+  type: TWOBODY
+- index: 151
+  reaction: CH2+ + E- -> C + H + H
+  type: TWOBODY
+- index: 152
+  reaction: CH2+ + E- -> CH + H
+  type: TWOBODY
+- index: 153
+  reaction: CH2+ + HCO -> CO + CH3+
+  type: TWOBODY
+- index: 154
+  reaction: CH2+ + O2 -> HCO+ + OH
+  type: TWOBODY
+- index: 155
+  reaction: CH2+ + O -> HCO+ + H
+  type: TWOBODY
+- index: 156
+  reaction: CH3 + CH3 -> CH4 + CH2
+  type: TWOBODY
+- index: 157
+  reaction: CH3 + H2O -> OH + CH4
+  type: TWOBODY
+- index: 158
+  reaction: CH3 + HCO -> CO + CH4
+  type: TWOBODY
+- index: 159
+  reaction: CH3 + O -> CO + H2 + H
+  type: TWOBODY
+- index: 160
+  reaction: CH3 + OH -> CH4 + O
+  type: TWOBODY
+- index: 161
+  reaction: CH3 + OH -> H2O + CH2
+  type: TWOBODY
+- index: 162
+  reaction: CH3+ + HCO -> HCO+ + CH3
+  type: TWOBODY
+- index: 163
+  reaction: CH3+ + MG -> MG+ + CH3
+  type: TWOBODY
+- index: 164
+  reaction: CH3+ + E- -> CH2 + H
+  type: TWOBODY
+- index: 165
+  reaction: CH3+ + E- -> CH + H2
+  type: TWOBODY
+- index: 166
+  reaction: CH3+ + E- -> CH + H + H
+  type: TWOBODY
+- index: 167
+  reaction: CH3+ + HCO -> CO + CH4+
+  type: TWOBODY
+- index: 168
+  reaction: CH3+ + O -> HCO+ + H2
+  type: TWOBODY
+- index: 169
+  reaction: CH3+ + E- -> CH3
+  type: TWOBODY
+- index: 170
+  reaction: CH4 + CO+ -> CO + CH4+
+  type: TWOBODY
+- index: 171
+  reaction: CH4 + CO+ -> HCO+ + CH3
+  type: TWOBODY
+- index: 172
+  reaction: CH4 + H2O+ -> H3O+ + CH3
+  type: TWOBODY
+- index: 173
+  reaction: CH4 + OH+ -> CH5+ + O
+  type: TWOBODY
+- index: 174
+  reaction: CH4 + OH+ -> H3O+ + CH2
+  type: TWOBODY
+- index: 175
+  reaction: CH4 + OH -> H2O + CH3
+  type: TWOBODY
+- index: 176
+  reaction: CH4+ + O2 -> O2+ + CH4
+  type: TWOBODY
+- index: 177
+  reaction: CH4+ + E- -> CH2 + H + H
+  type: TWOBODY
+- index: 178
+  reaction: CH4+ + E- -> CH3 + H
+  type: TWOBODY
+- index: 179
+  reaction: CH4+ + CH4 -> CH5+ + CH3
+  type: TWOBODY
+- index: 180
+  reaction: CH4+ + CO -> HCO+ + CH3
+  type: TWOBODY
+- index: 181
+  reaction: CH4+ + H2O -> H3O+ + CH3
+  type: TWOBODY
+- index: 182
+  reaction: CH5+ + E- -> CH2 + H2 + H
+  type: TWOBODY
+- index: 183
+  reaction: CH5+ + E- -> CH3 + H2
+  type: TWOBODY
+- index: 184
+  reaction: CH5+ + E- -> CH3 + H + H
+  type: TWOBODY
+- index: 185
+  reaction: CH5+ + E- -> CH4 + H
+  type: TWOBODY
+- index: 186
+  reaction: CH5+ + E- -> CH + H2 + H2
+  type: TWOBODY
+- index: 187
+  reaction: CH5+ + CO -> HCO+ + CH4
+  type: TWOBODY
+- index: 188
+  reaction: CH5+ + H2O -> H3O+ + CH4
+  type: TWOBODY
+- index: 189
+  reaction: CH5+ + MG -> MG+ + CH4 + H
+  type: TWOBODY
+- index: 190
+  reaction: CO+ + HCO -> HCO+ + CO
+  type: TWOBODY
+- index: 191
+  reaction: CO+ + O2 -> O2+ + CO
+  type: TWOBODY
+- index: 192
+  reaction: CO+ + E- -> O + C
+  type: TWOBODY
+- index: 193
+  reaction: H + CH -> C + H + H
+  type: TWOBODY
+- index: 194
+  reaction: H + H2 -> H + H + H
+  type: TWOBODY
+- index: 195
+  reaction: H + H2O -> OH + H + H
+  type: TWOBODY
+- index: 196
+  reaction: H + O2 -> O + O + H
+  type: TWOBODY
+- index: 197
+  reaction: H + OH -> O + H + H
+  type: TWOBODY
+- index: 198
+  reaction: H + CO+ -> CO + H+
+  type: TWOBODY
+- index: 199
+  reaction: H + H2+ -> H2 + H+
+  type: TWOBODY
+- index: 200
+  reaction: H + HE+ -> HE + H+
+  type: TWOBODY
+- index: 201
+  reaction: H + O+ -> O + H+
+  type: TWOBODY
+- index: 202
+  reaction: H + CH+ -> C+ + H2
+  type: TWOBODY
+- index: 203
+  reaction: H + CH2+ -> CH+ + H2
+  type: TWOBODY
+- index: 204
+  reaction: H + CH3+ -> CH2+ + H2
+  type: TWOBODY
+- index: 205
+  reaction: H + CH4+ -> CH3+ + H2
+  type: TWOBODY
+- index: 206
+  reaction: H + CH5+ -> CH4+ + H2
+  type: TWOBODY
+- index: 207
+  reaction: H + CH2 -> CH + H2
+  type: TWOBODY
+- index: 208
+  reaction: H + CH2 -> CH + H2
+  type: TWOBODY
+- index: 209
+  reaction: H + CH3 -> CH2 + H2
+  type: TWOBODY
+- index: 210
+  reaction: H + CH4 -> CH3 + H2
+  type: TWOBODY
+- index: 211
+  reaction: H + CH -> C + H2
+  type: TWOBODY
+- index: 212
+  reaction: H + CO -> OH + C
+  type: TWOBODY
+- index: 213
+  reaction: H + H2O -> OH + H2
+  type: TWOBODY
+- index: 214
+  reaction: H + HCO -> CO + H2
+  type: TWOBODY
+- index: 215
+  reaction: H + HCO -> O + CH2
+  type: TWOBODY
+- index: 216
+  reaction: H + O2 -> OH + O
+  type: TWOBODY
+- index: 217
+  reaction: H + OH -> O + H2
+  type: TWOBODY
+- index: 218
+  reaction: H + C+ -> CH+
+  type: TWOBODY
+- index: 219
+  reaction: H + C -> CH
+  type: TWOBODY
+- index: 220
+  reaction: H + O -> OH
+  type: TWOBODY
+- index: 221
+  reaction: H + OH -> H2O
+  type: TWOBODY
+- index: 222
+  reaction: H+ + CH2 -> CH2+ + H
+  type: TWOBODY
+- index: 223
+  reaction: H+ + CH3 -> CH3+ + H
+  type: TWOBODY
+- index: 224
+  reaction: H+ + CH4 -> CH4+ + H
+  type: TWOBODY
+- index: 225
+  reaction: H+ + CH -> CH+ + H
+  type: TWOBODY
+- index: 226
+  reaction: H+ + H2O -> H2O+ + H
+  type: TWOBODY
+- index: 227
+  reaction: H+ + HCO -> HCO+ + H
+  type: TWOBODY
+- index: 228
+  reaction: H+ + MG -> MG+ + H
+  type: TWOBODY
+- index: 229
+  reaction: H+ + O2 -> O2+ + H
+  type: TWOBODY
+- index: 230
+  reaction: H+ + O -> O+ + H
+  type: TWOBODY
+- index: 231
+  reaction: H+ + OH -> OH+ + H
+  type: TWOBODY
+- index: 232
+  reaction: H+ + CH2 -> CH+ + H2
+  type: TWOBODY
+- index: 233
+  reaction: H+ + CH4 -> CH3+ + H2
+  type: TWOBODY
+- index: 234
+  reaction: H+ + HCO -> CO+ + H2
+  type: TWOBODY
+- index: 235
+  reaction: H+ + HCO -> CO + H2+
+  type: TWOBODY
+- index: 236
+  reaction: H+ + H -> H2+
+  type: TWOBODY
+- index: 237
+  reaction: H+ + E- -> H
+  type: TWOBODY
+- index: 238
+  reaction: H2 + CH -> C + H2 + H
+  type: TWOBODY
+- index: 239
+  reaction: H2 + H2 -> H2 + H + H
+  type: TWOBODY
+- index: 240
+  reaction: H2 + H2O -> OH + H2 + H
+  type: TWOBODY
+- index: 241
+  reaction: H2 + O2 -> O + O + H2
+  type: TWOBODY
+- index: 242
+  reaction: H2 + OH -> O + H2 + H
+  type: TWOBODY
+- index: 243
+  reaction: H2 + E- -> H + H + E-
+  type: TWOBODY
+- index: 244
+  reaction: H2 + HE+ -> HE + H2+
+  type: TWOBODY
+- index: 245
+  reaction: H2 + C+ -> CH+ + H
+  type: TWOBODY
+- index: 246
+  reaction: H2 + CH+ -> CH2+ + H
+  type: TWOBODY
+- index: 247
+  reaction: H2 + CH2+ -> CH3+ + H
+  type: TWOBODY
+- index: 248
+  reaction: H2 + CH4+ -> CH5+ + H
+  type: TWOBODY
+- index: 249
+  reaction: H2 + CO+ -> HCO+ + H
+  type: TWOBODY
+- index: 250
+  reaction: H2 + H2O+ -> H3O+ + H
+  type: TWOBODY
+- index: 251
+  reaction: H2 + HE+ -> H+ + H + HE
+  type: TWOBODY
+- index: 252
+  reaction: H2 + O+ -> OH+ + H
+  type: TWOBODY
+- index: 253
+  reaction: H2 + OH+ -> H2O+ + H
+  type: TWOBODY
+- index: 254
+  reaction: H2 + C -> CH + H
+  type: TWOBODY
+- index: 255
+  reaction: H2 + CH3 -> CH4 + H
+  type: TWOBODY
+- index: 256
+  reaction: H2 + CH -> CH2 + H
+  type: TWOBODY
+- index: 257
+  reaction: H2 + O2 -> OH + OH
+  type: TWOBODY
+- index: 258
+  reaction: H2 + O -> OH + H
+  type: TWOBODY
+- index: 259
+  reaction: H2 + OH -> H2O + H
+  type: TWOBODY
+- index: 260
+  reaction: H2 + C+ -> CH2+
+  type: TWOBODY
+- index: 261
+  reaction: H2 + C -> CH2
+  type: TWOBODY
+- index: 262
+  reaction: H2 + CH3+ -> CH5+
+  type: TWOBODY
+- index: 263
+  reaction: H2 + CH -> CH3
+  type: TWOBODY
+- index: 264
+  reaction: H2+ + CH2 -> CH2+ + H2
+  type: TWOBODY
+- index: 265
+  reaction: H2+ + CH4 -> CH4+ + H2
+  type: TWOBODY
+- index: 266
+  reaction: H2+ + CH -> CH+ + H2
+  type: TWOBODY
+- index: 267
+  reaction: H2+ + CO -> CO+ + H2
+  type: TWOBODY
+- index: 268
+  reaction: H2+ + H2O -> H2O+ + H2
+  type: TWOBODY
+- index: 269
+  reaction: H2+ + HCO -> HCO+ + H2
+  type: TWOBODY
+- index: 270
+  reaction: H2+ + O2 -> O2+ + H2
+  type: TWOBODY
+- index: 271
+  reaction: H2+ + OH -> OH+ + H2
+  type: TWOBODY
+- index: 272
+  reaction: H2+ + E- -> H + H
+  type: TWOBODY
+- index: 273
+  reaction: H2+ + C -> CH+ + H
+  type: TWOBODY
+- index: 274
+  reaction: H2+ + CH2 -> CH3+ + H
+  type: TWOBODY
+- index: 275
+  reaction: H2+ + CH4 -> CH3+ + H2 + H
+  type: TWOBODY
+- index: 276
+  reaction: H2+ + CH4 -> CH5+ + H
+  type: TWOBODY
+- index: 277
+  reaction: H2+ + CH -> CH2+ + H
+  type: TWOBODY
+- index: 278
+  reaction: H2+ + CO -> HCO+ + H
+  type: TWOBODY
+- index: 279
+  reaction: H2+ + H2 -> H3+ + H
+  type: TWOBODY
+- index: 280
+  reaction: H2+ + H2O -> H3O+ + H
+  type: TWOBODY
+- index: 281
+  reaction: H2+ + HCO -> CO + H3+
+  type: TWOBODY
+- index: 282
+  reaction: H2+ + O -> OH+ + H
+  type: TWOBODY
+- index: 283
+  reaction: H2+ + OH -> H2O+ + H
+  type: TWOBODY
+- index: 284
+  reaction: H2O + CO+ -> CO + H2O+
+  type: TWOBODY
+- index: 285
+  reaction: H2O + CO+ -> HCO+ + OH
+  type: TWOBODY
+- index: 286
+  reaction: H2O + HCO+ -> CO + H3O+
+  type: TWOBODY
+- index: 287
+  reaction: H2O+ + HCO -> HCO+ + H2O
+  type: TWOBODY
+- index: 288
+  reaction: H2O+ + MG -> MG+ + H2O
+  type: TWOBODY
+- index: 289
+  reaction: H2O+ + O2 -> O2+ + H2O
+  type: TWOBODY
+- index: 290
+  reaction: H2O+ + E- -> O + H2
+  type: TWOBODY
+- index: 291
+  reaction: H2O+ + E- -> O + H + H
+  type: TWOBODY
+- index: 292
+  reaction: H2O+ + E- -> OH + H
+  type: TWOBODY
+- index: 293
+  reaction: H2O+ + CO -> HCO+ + OH
+  type: TWOBODY
+- index: 294
+  reaction: H2O+ + H2O -> H3O+ + OH
+  type: TWOBODY
+- index: 295
+  reaction: H2O+ + HCO -> CO + H3O+
+  type: TWOBODY
+- index: 296
+  reaction: H3+ + E- -> H2 + H
+  type: TWOBODY
+- index: 297
+  reaction: H3+ + E- -> H + H + H
+  type: TWOBODY
+- index: 298
+  reaction: H3+ + C -> CH+ + H2
+  type: TWOBODY
+- index: 299
+  reaction: H3+ + CH2 -> CH3+ + H2
+  type: TWOBODY
+- index: 300
+  reaction: H3+ + CH3 -> CH4+ + H2
+  type: TWOBODY
+- index: 301
+  reaction: H3+ + CH4 -> CH5+ + H2
+  type: TWOBODY
+- index: 302
+  reaction: H3+ + CH -> CH2+ + H2
+  type: TWOBODY
+- index: 303
+  reaction: H3+ + CO -> HCO+ + H2
+  type: TWOBODY
+- index: 304
+  reaction: H3+ + H2O -> H3O+ + H2
+  type: TWOBODY
+- index: 305
+  reaction: H3+ + MG -> MG+ + H2 + H
+  type: TWOBODY
+- index: 306
+  reaction: H3+ + O -> H2O+ + H
+  type: TWOBODY
+- index: 307
+  reaction: H3+ + O -> OH+ + H2
+  type: TWOBODY
+- index: 308
+  reaction: H3+ + OH -> H2O+ + H2
+  type: TWOBODY
+- index: 309
+  reaction: H3O+ + E- -> H2O + H
+  type: TWOBODY
+- index: 310
+  reaction: H3O+ + E- -> O + H2 + H
+  type: TWOBODY
+- index: 311
+  reaction: H3O+ + E- -> OH + H2
+  type: TWOBODY
+- index: 312
+  reaction: H3O+ + E- -> OH + H + H
+  type: TWOBODY
+- index: 313
+  reaction: HCO + O2+ -> O2 + HCO+
+  type: TWOBODY
+- index: 314
+  reaction: HCO + HCO -> CO + CO + H2
+  type: TWOBODY
+- index: 315
+  reaction: HCO+ + E- -> CO + H
+  type: TWOBODY
+- index: 316
+  reaction: HE+ + C -> C+ + HE
+  type: TWOBODY
+- index: 317
+  reaction: HE+ + CH4 -> CH4+ + HE
+  type: TWOBODY
+- index: 318
+  reaction: HE+ + CH -> CH+ + HE
+  type: TWOBODY
+- index: 319
+  reaction: HE+ + H2O -> H2O+ + HE
+  type: TWOBODY
+- index: 320
+  reaction: HE+ + O2 -> O2+ + HE
+  type: TWOBODY
+- index: 321
+  reaction: HE+ + CH2 -> C+ + HE + H2
+  type: TWOBODY
+- index: 322
+  reaction: HE+ + CH2 -> CH+ + HE + H
+  type: TWOBODY
+- index: 323
+  reaction: HE+ + CH3 -> CH+ + HE + H2
+  type: TWOBODY
+- index: 324
+  reaction: HE+ + CH4 -> CH+ + HE + H2 + H
+  type: TWOBODY
+- index: 325
+  reaction: HE+ + CH4 -> CH2+ + HE + H2
+  type: TWOBODY
+- index: 326
+  reaction: HE+ + CH4 -> CH3+ + HE + H
+  type: TWOBODY
+- index: 327
+  reaction: HE+ + CH4 -> CH3 + HE + H+
+  type: TWOBODY
+- index: 328
+  reaction: HE+ + CH -> C+ + HE + H
+  type: TWOBODY
+- index: 329
+  reaction: HE+ + CO -> O + C+ + HE
+  type: TWOBODY
+- index: 330
+  reaction: HE+ + H2O -> OH+ + HE + H
+  type: TWOBODY
+- index: 331
+  reaction: HE+ + H2O -> OH + HE + H+
+  type: TWOBODY
+- index: 332
+  reaction: HE+ + HCO -> CO+ + HE + H
+  type: TWOBODY
+- index: 333
+  reaction: HE+ + HCO -> O + CH+ + HE
+  type: TWOBODY
+- index: 334
+  reaction: HE+ + O2 -> O+ + O + HE
+  type: TWOBODY
+- index: 335
+  reaction: HE+ + OH -> O+ + HE + H
+  type: TWOBODY
+- index: 336
+  reaction: HE+ + E- -> HE
+  type: TWOBODY
+- index: 337
+  reaction: MG + HCO+ -> HCO + MG+
+  type: TWOBODY
+- index: 338
+  reaction: MG + O2+ -> O2 + MG+
+  type: TWOBODY
+- index: 339
+  reaction: MG+ + E- -> MG
+  type: TWOBODY
+- index: 340
+  reaction: O + CO+ -> CO + O+
+  type: TWOBODY
+- index: 341
+  reaction: O + CH4+ -> OH + CH3+
+  type: TWOBODY
+- index: 342
+  reaction: O + CH5+ -> H3O+ + CH2
+  type: TWOBODY
+- index: 343
+  reaction: O + H2O+ -> O2+ + H2
+  type: TWOBODY
+- index: 344
+  reaction: O + OH+ -> O2+ + H
+  type: TWOBODY
+- index: 345
+  reaction: O + CH4 -> OH + CH3
+  type: TWOBODY
+- index: 346
+  reaction: O + H2O -> OH + OH
+  type: TWOBODY
+- index: 347
+  reaction: O + HCO -> CO + OH
+  type: TWOBODY
+- index: 348
+  reaction: O + OH -> O2 + H
+  type: TWOBODY
+- index: 349
+  reaction: O + O -> O2
+  type: TWOBODY
+- index: 350
+  reaction: O+ + CH4 -> CH4+ + O
+  type: TWOBODY
+- index: 351
+  reaction: O+ + CO -> CO+ + O
+  type: TWOBODY
+- index: 352
+  reaction: O+ + H2O -> H2O+ + O
+  type: TWOBODY
+- index: 353
+  reaction: O+ + HCO -> HCO+ + O
+  type: TWOBODY
+- index: 354
+  reaction: O+ + O2 -> O2+ + O
+  type: TWOBODY
+- index: 355
+  reaction: O+ + OH -> OH+ + O
+  type: TWOBODY
+- index: 356
+  reaction: O+ + CH4 -> OH + CH3+
+  type: TWOBODY
+- index: 357
+  reaction: O+ + HCO -> CO + OH+
+  type: TWOBODY
+- index: 358
+  reaction: O+ + OH -> O2+ + H
+  type: TWOBODY
+- index: 359
+  reaction: O+ + E- -> O
+  type: TWOBODY
+- index: 360
+  reaction: O2+ + E- -> O + O
+  type: TWOBODY
+- index: 361
+  reaction: OH + CO+ -> CO + OH+
+  type: TWOBODY
+- index: 362
+  reaction: OH + CH5+ -> H2O+ + CH4
+  type: TWOBODY
+- index: 363
+  reaction: OH + CO+ -> HCO+ + O
+  type: TWOBODY
+- index: 364
+  reaction: OH + H2O+ -> H3O+ + O
+  type: TWOBODY
+- index: 365
+  reaction: OH + HCO+ -> CO + H2O+
+  type: TWOBODY
+- index: 366
+  reaction: OH + HCO -> CO + H2O
+  type: TWOBODY
+- index: 367
+  reaction: OH + OH -> H2O + O
+  type: TWOBODY
+- index: 368
+  reaction: OH+ + H2O -> H2O+ + OH
+  type: TWOBODY
+- index: 369
+  reaction: OH+ + HCO -> HCO+ + OH
+  type: TWOBODY
+- index: 370
+  reaction: OH+ + O2 -> O2+ + OH
+  type: TWOBODY
+- index: 371
+  reaction: OH+ + E- -> O + H
+  type: TWOBODY
+- index: 372
+  reaction: OH+ + CO -> HCO+ + O
+  type: TWOBODY
+- index: 373
+  reaction: OH+ + H2O -> H3O+ + O
+  type: TWOBODY
+- index: 374
+  reaction: OH+ + HCO -> CO + H2O+
+  type: TWOBODY
+- index: 375
+  reaction: OH+ + OH -> H2O+ + O
+  type: TWOBODY
+- index: 376
+  reaction: C -> C+ + E-
+  type: CPHOTOION
+- index: 377
+  reaction: CO -> O + C
+  type: COPHOTODISS
+- index: 378
+  reaction: H2 -> H + H
+  type: H2PHOTODISS

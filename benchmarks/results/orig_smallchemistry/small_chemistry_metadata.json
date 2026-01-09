@@ -1,0 +1,84 @@
+{
+  "timestamp": "2026-01-09T10:28:30.150569",
+  "run_name": "small_chemistry",
+  "computation_time_seconds": 10.101581,
+  "config": {
+    "physical_params": {
+      "number_density": 10000.0,
+      "temperature": 250.0,
+      "cr_rate": 1.0,
+      "fuv_field": 1.0,
+      "visual_extinction": 21.2875,
+      "visual_extinction_config": 2.9643750143703076,
+      "use_self_consistent_av": true,
+      "cloud_radius_pc": 1.0,
+      "base_av": 2.0
+    },
+    "integration": {
+      "t_start": 0.0,
+      "t_end": 5000000.0,
+      "n_snapshots": 100,
+      "solver": "kvaerno5",
+      "atol": 1e-30,
+      "rtol": 1e-09,
+      "max_steps": 65536
+    },
+    "initial_abundances": {
+      "H": 0.5,
+      "H2": 0.25,
+      "HE": 0.1000000014901161,
+      "O": 0.000334,
+      "C+": 0.000177,
+      "E-": 0.000177,
+      "MG": 2.256e-06,
+      "C": 1e-10
+    }
+  },
+  "network": {
+    "n_species": 34,
+    "n_reactions": 379,
+    "species_names": [
+      "C",
+      "C+",
+      "CH",
+      "CH+",
+      "CH2",
+      "CH2+",
+      "CH3",
+      "CH3+",
+      "CH4",
+      "CH4+",
+      "CH5+",
+      "CO",
+      "CO+",
+      "E-",
+      "H",
+      "H+",
+      "H2",
+      "H2+",
+      "H2O",
+      "H2O+",
+      "H3+",
+      "H3O+",
+      "HCO",
+      "HCO+",
+      "HE",
+      "HE+",
+      "MG",
+      "MG+",
+      "O",
+      "O+",
+      "O2",
+      "O2+",
+      "OH",
+      "OH+"
+    ],
+    "use_sparse": false,
+    "vectorize_reactions": true
+  },
+  "solver_stats": {
+    "num_steps": 1696,
+    "num_accepted_steps": 1682,
+    "num_rejected_steps": 14
+  }
+}

@@ -8,7 +8,7 @@ Supports loading from YAML/JSON and programmatic setup.
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 import jax.numpy as jnp
 import yaml
@@ -98,6 +98,7 @@ class SimulationConfig:
     t_end: float = 1e6  # years
     n_snapshots: int = 1000
     solver: str = "kvaerno5"
+    linear_solver: str = "sparse"
     atol: float = 1e-18
     rtol: float = 1e-12
     max_steps: int = 4096
@@ -108,6 +109,9 @@ class SimulationConfig:
     save_derivatives: bool = False
     save_rates: bool = False
     run_name: str = "carbox_run"
+
+    # Physics Model (Optional, for dynamic physics like CSE)
+    physics_model: Optional[Any] = None
 
     @classmethod
     def from_yaml(cls, filepath: str) -> "SimulationConfig":
@@ -174,11 +178,11 @@ class SimulationConfig:
 
     def validate(self):
         """Basic validation of parameter ranges."""
-        assert 1e2 <= self.number_density <= 1e8, "number_density out of physical range"
+        # assert 1e2 <= self.number_density <= 1e8, "number_density out of physical range"
         assert 10 <= self.temperature <= 1e5, "temperature out of range"
         # assert 1e-18 <= self.cr_rate <= 1e-12, "cr_rate out of typical range"
         assert 0 <= self.visual_extinction, "visual_extinction out of range"
         assert self.t_end > self.t_start, "t_end must be > t_start"
-        assert self.solver in ["dopri5", "kvaerno5", "tsit5"], (
+        assert self.solver in ["dopri5", "kvaerno5", "tsit5", "kvaerno3"], (
             f"Unknown solver: {self.solver}"
         )

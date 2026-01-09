@@ -16,10 +16,99 @@ class JNetwork(eqx.Module):
     reactions: List[JReactionRateTerm]
     reactant_multipliers: jnp.array
 
-    def __init__(self, incidence, reactions, dense=True):
-        self.incidence = incidence  # S, R
+    def __init__(self, incidence, reactions, reactant_multipliers):
+        # Ensure incidence is treated as a static structure if possible, 
+        # but as a Module field it's fine as a jnp.array.
+        self.incidence = incidence 
+        self.reactions = reactions  
+        self.reactant_multipliers = reactant_multipliers
+        
+        
+
+    # @jax.jit
+    # def get_rates(self, temperature, cr_rate, fuv_rate, visual_extinction, abundances):
+    #     """
+    #     Get the reaction rates for the given temperature, cosmic ray ionisation rate,
+    #     FUV radiation field, and abundance vector.
+    #     """
+    #     # TODO: optimization: The most Jax way to do optimize would be to create one class with all the reactions of one type and all their constants.
+    #     # rates = jnp.empty(len(self.reactions))
+    #     # for i, reaction in enumerate(self.reactions):
+    #     #     rates = rates.at[i].set(reaction(temperature, cr_rate, fuv_rate))
+    #     # return rates
+    #     return jnp.hstack(
+    #         [
+    #             reaction(temperature, cr_rate, fuv_rate, visual_extinction, abundances)
+    #             for reaction in self.reactions
+    #         ]
+    #     )
+    
+    @jax.jit
+    def get_rates(self, temperature, cr_rate, fuv_rate, visual_extinction, abundances):
+        # List comprehension is okay for JIT, but it unrolls the loop.
+        # For 'large' networks, this can make the graph massive.
+        return jnp.hstack([
+            r(temperature, cr_rate, fuv_rate, visual_extinction, abundances)
+            for r in self.reactions
+        ])
+
+    @jax.jit
+    def multiply_rates_by_abundance(self, rates, abundances):
+        """
+        Multiply the rates by the abundances of the reactants.
+        """
+        # We scatter the abunndances in two columns, with unity if it is monomolecular
+        # This is achieved by "dropping" values we cannnot reach. Then take the product of each row, and mulitply it with the rates.
+        rates_multiplier = jnp.ones_like(self.reactant_multipliers)
+        rates_multiplier = jnp.prod(
+            abundances.at[self.reactant_multipliers].get(mode="drop", fill_value=1.0),
+            axis=1,
+        )
+        return rates * rates_multiplier
+
+    @partial(jax.profiler.annotate_function, name="JNetwork._call__")
+    def __call__(
+        self,
+        time: jnp.array,
+        abundances: jnp.array,
+        temperature: jnp.array,
+        cr_rate: jnp.array,
+        fuv_rate: jnp.array,
+        visual_extinction: jnp.array,
+    ) -> jnp.array:
+        # abundances = abundances * density
+        # Calculate the reaction rates (pass abundances for self-shielding reactions)
+        rates = self.get_rates(
+            temperature, cr_rate, fuv_rate, visual_extinction, abundances
+        )
+        # jax.debug.print("rates: {rates}", rates=rates)
+        # Get the matrix that encodes the reactants that need to be multiplied to get the flux
+        rates = self.multiply_rates_by_abundance(rates, abundances)
+        # Calculate the change in abundances
+        # TODO: check that we are not loosing too much precision with the matmul?
+        # Use BCCOO to avoid conversion to dense
+        return self.incidence @ rates
+        # Regular implmentation with dense matrix and highest precision
+        # return jnp.matmul(self.incidence, rates, precision=jax.lax.Precision.HIGHEST)
+
+
+@dataclass
+class Network:
+    species: List[Species]
+    reactions: List[Reaction]
+    incidence: jnp.array
+    use_sparse: bool
+    vectorize_reactions: bool
+
+    def __init__(self, species, reactions, use_sparse=True, vectorize_reactions=True):
+        self.species = species  # S
         self.reactions = reactions  # R
-        self.reactant_multipliers = self.get_reactant_multipliers(incidence)
+        self.use_sparse = use_sparse
+        self.vectorize_reactions = vectorize_reactions
+        self.jreactions = []
+
+        # Create the incidence matrix (S species, R reactions)
+        self.incidence = self.construct_incidence(self.species, self.reactions)
 
     def get_reactant_multipliers(self, incidence):
         # In order to correctly get the flux, we need to multiply the rates per reaction
@@ -58,83 +147,6 @@ class JNetwork(eqx.Module):
                         spec_idx
                     )
         return reactant_multiplier
-
-    @jax.jit
-    def get_rates(self, temperature, cr_rate, fuv_rate, visual_extinction, abundances):
-        """
-        Get the reaction rates for the given temperature, cosmic ray ionisation rate,
-        FUV radiation field, and abundance vector.
-        """
-        # TODO: optimization: The most Jax way to do optimize would be to create one class with all the reactions of one type and all their constants.
-        # rates = jnp.empty(len(self.reactions))
-        # for i, reaction in enumerate(self.reactions):
-        #     rates = rates.at[i].set(reaction(temperature, cr_rate, fuv_rate))
-        # return rates
-        return jnp.hstack(
-            [
-                reaction(temperature, cr_rate, fuv_rate, visual_extinction, abundances)
-                for reaction in self.reactions
-            ]
-        )
-
-    @jax.jit
-    def multiply_rates_by_abundance(self, rates, abundances):
-        """
-        Multiply the rates by the abundances of the reactants.
-        """
-        # We scatter the abunndances in two columns, with unity if it is monomolecular
-        # This is achieved by "dropping" values we cannnot reach. Then take the product of each row, and mulitply it with the rates.
-        rates_multiplier = jnp.ones_like(self.reactant_multipliers)
-        rates_multiplier = jnp.prod(
-            abundances.at[self.reactant_multipliers].get(mode="drop", fill_value=1.0),
-            axis=1,
-        )
-        return rates * rates_multiplier
-
-    @partial(jax.profiler.annotate_function, name="JNetwork._call__")
-    def __call__(
-        self,
-        time: jnp.array,
-        abundances: jnp.array,
-        temperature: jnp.array,
-        # density: jnp.array,
-        cr_rate: jnp.array,
-        fuv_rate: jnp.array,
-        visual_extinction: jnp.array,
-    ) -> jnp.array:
-        # abundances = abundances * density
-        # Calculate the reaction rates (pass abundances for self-shielding reactions)
-        rates = self.get_rates(
-            temperature, cr_rate, fuv_rate, visual_extinction, abundances
-        )
-        # jax.debug.print("rates: {rates}", rates=rates)
-        # Get the matrix that encodes the reactants that need to be multiplied to get the flux
-        rates = self.multiply_rates_by_abundance(rates, abundances)
-        # Calculate the change in abundances
-        # TODO: check that we are not loosing too much precision with the matmul?
-        # Use BCCOO to avoid conversion to dense
-        return self.incidence @ rates
-        # Regular implmentation with dense matrix and highest precision
-        # return jnp.matmul(self.incidence, rates, precision=jax.lax.Precision.HIGHEST)
-
-
-@dataclass
-class Network:
-    species: List[Species]
-    reactions: List[Reaction]
-    incidence: jnp.array
-    use_sparse: bool
-    vectorize_reactions: bool
-
-    def __init__(self, species, reactions, use_sparse=True, vectorize_reactions=True):
-        self.species = species  # S
-        self.reactions = reactions  # R
-        self.use_sparse = use_sparse
-        self.vectorize_reactions = vectorize_reactions
-        self.jreactions = []
-
-        # Create the incidence matrix (S species, R reactions)
-        self.incidence = self.construct_incidence(self.species, self.reactions)
 
     def species_count(self):
         """
@@ -305,4 +317,7 @@ class Network:
                 self.jreactions.append(reaction())
         else:
             self.jreactions = [reaction() for reaction in self.reactions]
-        return JNetwork(self.incidence, self.jreactions)
+
+        reactant_multipliers = self.get_reactant_multipliers(self.incidence)
+
+        return JNetwork(self.incidence, self.jreactions, reactant_multipliers=reactant_multipliers)
