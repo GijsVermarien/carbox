@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-01-09T14:56:01.301454",
+  "timestamp": "2026-01-09T18:25:06.577105",
   "run_name": "gas_phase_only_cse",
-  "computation_time_seconds": 9.248607,
+  "computation_time_seconds": 16.410648,
   "config": {
     "physical_params": {
       "number_density": 870533294.4133873,
@@ -221,8 +221,8 @@
     "vectorize_reactions": true
   },
   "solver_stats": {
-    "num_steps": 341,
-    "num_accepted_steps": 334,
-    "num_rejected_steps": 7
+    "num_steps": 438,
+    "num_accepted_steps": 388,
+    "num_rejected_steps": 50
   }
 }

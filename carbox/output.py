@@ -13,6 +13,7 @@ import diffrax as dx
 import jax
 import jax.numpy as jnp
 import pandas as pd
+import csv
 
 from .config import SimulationConfig
 from .network import JNetwork, Network
@@ -118,6 +119,65 @@ def save_abundances(
 
     print(f"Saved abundances to: {filepath}")
     return filepath
+
+
+def initialize_abundance_output(network: Network, config: SimulationConfig) -> Path:
+    """Initialize the abundance CSV file with headers."""
+    output_path = prepare_output_directory(config)
+    filepath = output_path / f"{config.run_name}_abundances.csv"
+    
+    species_names = [s.name for s in network.species]
+    header = [
+        "time_seconds", "time_years", "radius_cm", "number_density", 
+        "temperature", "cr_rate", "fuv_field", "visual_extinction"
+    ] + species_names
+    
+    with open(filepath, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
+        
+    print(f"Initialized streaming output: {filepath}")
+    return filepath
+
+
+def write_abundance_snapshot(
+    filepath: Path, 
+    t_sec: float, 
+    y: jnp.ndarray, 
+    network: Network, 
+    config: SimulationConfig
+):
+    """Append a single snapshot to the abundance CSV."""
+    # Calculate physics for this timestamp
+    if config.physics_model is not None:
+        n, T, av, r = config.physics_model.get_conditions(t_sec)
+        n_h_nuclei = n
+    else:
+        n = config.number_density
+        T = config.temperature
+        av = config.compute_visual_extinction()
+        r = 0.0
+        n_h_nuclei = n
+
+    # Convert to fractional abundances
+    # y is absolute density [cm^-3], output is fractional relative to H nuclei
+    frac_abundances = y / n_h_nuclei
+    
+    # Prepare row
+    row = [
+        float(t_sec),
+        float(t_sec / SPY),
+        float(r),
+        float(n),
+        float(T),
+        float(config.cr_rate),
+        float(config.fuv_field),
+        float(av)
+    ] + [float(val) for val in frac_abundances]
+    
+    with open(filepath, "a", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(row)
 
 
 def save_derivatives(

@@ -28,10 +28,12 @@ from typing import Optional
 
 import jax
 import jax.numpy as jnp
+import diffrax as dx
+from tqdm import tqdm
 
 # JAX configuration for numerical stability
 jax.config.update("jax_enable_x64", True)
-jax.config.update("jax_debug_nans", True)
+# jax.config.update("jax_debug_nans", True)  # CRITICAL: Disable for performance
 
 from .config import SimulationConfig
 from .initial_conditions import (
@@ -45,9 +47,11 @@ from .output import (
     save_metadata,
     save_reaction_rates,
     save_summary_report,
+    initialize_abundance_output,
+    write_abundance_snapshot,
 )
 from .parsers import parse_chemical_network
-from .solver import compute_derivatives, compute_reaction_rates, solve_network
+from .solver import compute_derivatives, compute_reaction_rates, solve_network, create_step_solver, get_time_grid
 
 
 def run_simulation(
@@ -144,24 +148,79 @@ def run_simulation(
 
     # Step 4: Solve ODE
     if verbose:
-        print(f"Solving ODE system with {config.solver}...")
+        print(f"Solving ODE system with {config.solver} (Streaming Mode)...")
         print(f"  Time range: {config.t_start:.2e} - {config.t_end:.2e} years")
         print(f"  Snapshots: {config.n_snapshots}")
-        print("  Compiling solver (first call)...")
+        print("  Compiling step solver...")
 
     solve_start = datetime.now()
-    solution = solve_network(jnetwork, y0, config)
+    
+    # --- Streaming Implementation ---
+    
+    # 1. Prepare time grid and output file
+    t_snapshots = get_time_grid(config)
+    output_file = initialize_abundance_output(network, config)
+    
+    # 2. Create JIT-compiled stepper
+    step_solver = create_step_solver(jnetwork, config)
+    
+    # 3. Initialize state
+    y_current = y0
+    t_current = t_snapshots[0]
+    physics = config.physics_model
+    solver_state = None
+    controller_state = None
+    
+    # Accumulators for full solution (needed for derivatives/rates post-processing)
+    ts_list = [t_current]
+    ys_list = [y_current]
+    total_steps = 0
+    total_accepted = 0
+    total_rejected = 0
+
+    # 4. Write initial condition (t=0)
+    write_abundance_snapshot(output_file, float(t_current), y_current, network, config)
+    
+    # 5. Loop over snapshots
+    # We iterate from 0 to N-2 to go from t[i] to t[i+1]
+    pbar = tqdm(range(len(t_snapshots) - 1), disable=not verbose, desc="Integration")
+    
+    if verbose:
+        print("  Starting integration loop (first step triggers JIT compilation)...")
+
+    for i in pbar:
+        t_next = t_snapshots[i+1]
+        
+        # Solve step
+        sol = step_solver(t_current, t_next, y_current, physics, solver_state, controller_state)
+        y_next = sol.ys[0]
+        stats = sol.stats
+        solver_state = sol.solver_state
+        controller_state = sol.controller_state
+        
+        # Write output immediately
+        write_abundance_snapshot(output_file, float(t_next), y_next, network, config)
+        
+        # Update state
+        y_current = y_next
+        t_current = t_next
+        
+        # Accumulate
+        ts_list.append(t_next)
+        ys_list.append(y_next)
+        total_steps += int(stats["num_steps"])
+        total_accepted += int(stats["num_accepted_steps"])
+        total_rejected += int(stats["num_rejected_steps"])
+
+        # Update progress bar with current radius
+        if physics is not None:
+            _, _, _, r_curr = physics.get_conditions(t_next)
+            pbar.set_postfix(r=f"{float(r_curr):.2e} cm")
+
     solve_time = (datetime.now() - solve_start).total_seconds()
 
     if verbose:
         print(f"  Integration complete in {solve_time:.2f} seconds")
-        if hasattr(solution, "stats"):
-            print(
-                f"  Steps: {solution.stats['num_steps']} "
-                + f"(accepted: {solution.stats['num_accepted_steps']}, "
-                + f"rejected: {solution.stats['num_rejected_steps']})"
-            )
-        print()
 
     # Step 5: Save results
     if verbose:
@@ -169,9 +228,26 @@ def run_simulation(
 
     computation_time = (datetime.now() - start_time).total_seconds()
 
-    # Always save abundances
-    if config.save_abundances:
-        save_abundances(solution, network, config)
+    # Reconstruct a Diffrax Solution object for compatibility with existing tools
+    # Note: We stack the lists into JAX arrays
+    solution = dx.Solution(
+        ts=jnp.stack(ts_list),
+        ys=jnp.stack(ys_list),
+        stats={
+            "num_steps": total_steps,
+            "num_accepted_steps": total_accepted,
+            "num_rejected_steps": total_rejected
+        },
+        t0=t_snapshots[0],
+        t1=t_snapshots[-1],
+        interpolation=None, # We don't have dense interpolation here
+        result=jnp.array(0), # Success
+        solver_state=solver_state,
+        controller_state=controller_state,
+        made_jump=None,
+        event_mask=None,
+    )
+
 
     # Optional: derivatives
     if config.save_derivatives:

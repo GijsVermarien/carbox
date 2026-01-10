@@ -141,31 +141,76 @@ def solve_network(
 
     ode_term = dx.ODETerm(_ode_func)
 
+    # Get time grid
+    t_snapshots_sec = get_time_grid(config)
 
-    # Time sampling (log-spaced in years, converted to seconds)
+    # Get solver
+    solver = get_solver(config)
+
+    # Solve (JIT compiled for performance)
+    @eqx.filter_jit
+    def _solve(t0, t1, y0, args, saveat_ts):
+        # my_kvaerno = dx.Kvaerno5(root_finder=root_finder)
+        return dx.diffeqsolve(
+            ode_term,
+            solver,
+            t0=t0,
+            t1=t1,
+            dt0=1e-4,  # Explicit small initial step to avoid estimator overhead
+            y0=y0,
+            stepsize_controller=dx.PIDController(
+                atol=config.atol,
+                rtol=config.rtol,
+            ),
+            saveat=dx.SaveAt(ts=saveat_ts),
+            args=args,
+            max_steps=config.max_steps,
+        )
+    
+    solution = _solve(t_start_sec, t_end_sec, y0, physics, t_snapshots_sec)
+
+    return solution
+
+
+def get_time_grid(config: SimulationConfig) -> jnp.ndarray:
+    """Generate the time grid (in seconds) based on configuration."""
     t_start_sec = config.t_start * SPY
     t_end_sec = config.t_end * SPY
 
-    # # Create log-spaced times with manual 0th timestep
-    # if config.t_start <= 0:
-    #     # Start from very small value for log spacing (excluding t=0)
-    #     # This captures early chemistry evolution
-    #     t_start_log = -9  # 10^-9 years (~31.5 microseconds)
-    #     t_log = jnp.logspace(
-    #         t_start_log, jnp.log10(config.t_end), config.n_snapshots - 1
-    #     )
-    #     # Prepend t=0 as the 0th timestep
-    #     t_snapshots = jnp.concatenate([jnp.array([0.0]), t_log])
-    #     t_snapshots_sec = t_snapshots * SPY
-    # else:
-    #     # If t_start > 0, still include it as the 0th timestep
-    #     t_log = jnp.logspace(
-    #         jnp.log10(config.t_start), jnp.log10(config.t_end), config.n_snapshots - 1
-    #     )
-    #     t_snapshots = jnp.concatenate([jnp.array([config.t_start]), t_log])
-    #     t_snapshots_sec = t_snapshots * SPY
+    # Check if we should use radius-based spacing (for CSE models)
+    # This avoids clustering points at t=0 when using log-time spacing
+    if config.physics_model is not None:
+        pm = config.physics_model
+        if hasattr(pm, "r_init") and hasattr(pm, "vexp"):
+            r_init = pm.r_init
+            v_cgs = pm.vexp * 1.0e5  # km/s -> cm/s
+            
+            r_start = r_init + v_cgs * t_start_sec
+            
+            # Use r_final if available to define the grid end
+            if hasattr(pm, "r_final") and pm.r_final is not None:
+                r_end = pm.r_final
+                t_end_sec = (r_end - r_init) / v_cgs
+            else:
+                r_end = r_init + v_cgs * t_end_sec
+            
+            # Generate log-spaced radius grid
+            r_snapshots = jnp.logspace(
+                jnp.log10(r_start), 
+                jnp.log10(r_end), 
+                config.n_snapshots
+            )
+            
+            # Convert back to time: t = (r - r_init) / v
+            t_snapshots_sec = (r_snapshots - r_init) / v_cgs
+            
+            # Ensure boundaries are exact
+            t_snapshots_sec = t_snapshots_sec.at[0].set(t_start_sec)
+            t_snapshots_sec = t_snapshots_sec.at[-1].set(t_end_sec)
+            
+            return t_snapshots_sec
 
-    # Create log-spaced times
+    # Time sampling (log-spaced in years, converted to seconds)
     if config.t_start <= 0:
         # For t_start=0, use a very small starting time for log spacing
         t_start_for_log = 1e-9  # years
@@ -188,50 +233,59 @@ def solve_network(
     
     # Ensure last point is exactly at t_end (avoid floating point error)
     t_snapshots_sec = t_snapshots_sec.at[-1].set(t_end_sec)
-
-    # print(f"Debug time array:")
-    # print(f"  config.t_start: {config.t_start}")
-    # print(f"  config.t_end: {config.t_end}")
-    # print(f"  t_start_sec: {t_start_sec}")
-    # print(f"  t_end_sec: {t_end_sec}")
-    # print(f"  t_snapshots_sec[0]: {t_snapshots_sec[0]}")
-    # print(f"  t_snapshots_sec[-1]: {t_snapshots_sec[-1]}")
-    # print(f"  min(t_snapshots_sec): {jnp.min(t_snapshots_sec)}")
-    # print(f"  max(t_snapshots_sec): {jnp.max(t_snapshots_sec)}")
-    # print(f"  First few values: {t_snapshots_sec[:3]}")
-    # print(f"  Last few values: {t_snapshots_sec[-3:]}")
+    return t_snapshots_sec
 
 
-    # Get solver
+def create_step_solver(jnetwork: JNetwork, config: SimulationConfig):
+    """
+    Create a JIT-compiled function to solve a single step (interval).
+    
+    Returns
+    -------
+    step_fn : function
+        Function with signature step(t0, t1, y0, args) -> (y1, stats)
+    """
+    physics = config.physics_model
+    if physics is None:
+        raise ValueError("config.physics_model must be set for the solver.")
+    
+    # Define ODE term (same as in solve_network)
+    def _ode_func(t, y, args):
+        physics = args
+        n, T, av, r = physics.get_conditions(t)
+        dy_chem = jnetwork(t, y, T, config.cr_rate, config.fuv_field, av)
+        v_cgs = physics.vexp * physics.KM_CM
+        dilution = -2 * (v_cgs / r) * y
+        return dy_chem + dilution
+
+    ode_term = dx.ODETerm(_ode_func)
     solver = get_solver(config)
 
-    # root_finder = optx.Newton(rtol=config.rtol, 
-    #                           atol=config.atol, 
-    #                           linear_solver=lx.AutoLinearSolver())
-    
-    # Solve (JIT compiled for performance)
     @eqx.filter_jit
-    def _solve(t0, t1, y0, args, saveat_ts):
-        # my_kvaerno = dx.Kvaerno5(root_finder=root_finder)
-        return dx.diffeqsolve(
+    def step(t0, t1, y0, args, solver_state, controller_state):
+        # We only want the state at t1
+        saveat = dx.SaveAt(t1=True)
+        sol = dx.diffeqsolve(
             ode_term,
             solver,
             t0=t0,
             t1=t1,
-            dt0=1e-6,  # Initial timestep [s]
+            dt0=1e-4,  # Explicit small initial step
             y0=y0,
             stepsize_controller=dx.PIDController(
                 atol=config.atol,
                 rtol=config.rtol,
             ),
-            saveat=dx.SaveAt(ts=saveat_ts),
+            saveat=saveat,
             args=args,
             max_steps=config.max_steps,
+            solver_state=solver_state,
+            controller_state=controller_state,
+            made_jump=False,
         )
-    
-    solution = _solve(t_start_sec, t_end_sec, y0, physics, t_snapshots_sec)
+        return sol
 
-    return solution
+    return step
 
 
 def compute_derivatives(
@@ -275,11 +329,14 @@ def compute_derivatives(
         return dy_chem + dilution
 
     # Vectorize over time and state
-    return jax.vmap(_compute_single)(solution.ts, solution.ys)
+    @eqx.filter_jit
+    def _compute_batch(ts, ys):
+        return jax.vmap(_compute_single)(ts, ys)
+
+    return _compute_batch(solution.ts, solution.ys)
 
 
 def compute_reaction_rates(
-    network: eqx.Module,
     jnetwork: JNetwork,
     solution: dx.Solution,
     config: SimulationConfig,
@@ -313,4 +370,8 @@ def compute_reaction_rates(
         return jnetwork.get_rates(T, config.cr_rate, config.fuv_field, av, y)
 
     # Vectorize over time and state
-    return jax.vmap(_compute_single)(solution.ts, solution.ys)
+    @eqx.filter_jit
+    def _compute_batch(ts, ys):
+        return jax.vmap(_compute_single)(ts, ys)
+
+    return _compute_batch(solution.ts, solution.ys)

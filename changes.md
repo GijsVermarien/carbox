@@ -346,5 +346,22 @@ Because your network is "large," the "sparsity" of the matrix is being traced. W
 By passing linear_solver=lx.LU() inside the root_finder, you effectively told the solver: "Do not look at the matrix. Do not try to choose an algorithm. Just use the standard LU decomposition."
 
 
+Full CSE -> "max_steps": 65536 not enough:
+ERROR: Carbox failed after 34342.93s - 9.5h
+
+TODO
+- Write output as we go... 
+- Needs to give last successful time/radius
 
 
+Changes to multiply_rates_by_abundance
+
+"For a large reaction network, the most significant bottleneck (after JIT compilation) is often the gather/scatter operations used to map species abundances to reaction rates.
+
+In your current JNetwork.multiply_rates_by_abundance, you use abundances.at[...].get(mode="drop", fill_value=1.0). While convenient, mode="drop" introduces conditional logic (bounds checking) for every reaction, which can be slower than direct indexing on large arrays.
+
+I recommend optimizing this by padding the abundance array with a dummy 1.0 value and pointing all "missing" reactants to this index. This allows for a direct, unconditional gather operation."
+
+"Memory-Efficient Initialization: The current construct_incidence creates a dense matrix of zeros (Species, Reactions) on the GPU before converting to sparse. For large networks (e.g., 500 species, 5000 reactions), this is inefficient. I will switch to using scipy.sparse to build the matrix on the CPU and then transfer it to JAX.
+Faster Setup Logic: The get_reactant_multipliers function currently calls .todense() on the sparse matrix and iterates over JAX arrays in a Python loop. This is extremely slow for large networks. I will refactor this to operate directly on the sparse indices using NumPy (CPU) before moving the final result to the GPU.
+"

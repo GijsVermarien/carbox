@@ -1,18 +1,27 @@
 from dataclasses import dataclass
 from functools import partial
-from typing import List
+from typing import List, Union
+from typing import List, Union
 
 import equinox as eqx
 import jax
 import jax.numpy as jnp
 from jax.experimental import sparse
+import numpy as np
 
 from .reactions import JReactionRateTerm, Reaction
 from .species import Species
 
 
+class _ScalarRateTermWrapper(eqx.Module):
+    term: JReactionRateTerm
+
+    def __call__(self, *args, **kwargs):
+        return jnp.reshape(self.term(*args, **kwargs), (1,))
+
+
 class JNetwork(eqx.Module):
-    incidence: jnp.array
+    incidence: Union[jnp.ndarray, sparse.BCOO]
     reactions: List[JReactionRateTerm]
     reactant_multipliers: jnp.array
 
@@ -42,28 +51,29 @@ class JNetwork(eqx.Module):
     #             for reaction in self.reactions
     #         ]
     #     )
-    
-    @jax.jit
+
     def get_rates(self, temperature, cr_rate, fuv_rate, visual_extinction, abundances):
         # List comprehension is okay for JIT, but it unrolls the loop.
         # For 'large' networks, this can make the graph massive.
-        return jnp.hstack([
+        return jnp.concatenate([
             r(temperature, cr_rate, fuv_rate, visual_extinction, abundances)
             for r in self.reactions
         ])
 
-    @jax.jit
     def multiply_rates_by_abundance(self, rates, abundances):
         """
         Multiply the rates by the abundances of the reactants.
         """
-        # We scatter the abunndances in two columns, with unity if it is monomolecular
-        # This is achieved by "dropping" values we cannnot reach. Then take the product of each row, and mulitply it with the rates.
-        rates_multiplier = jnp.ones_like(self.reactant_multipliers)
-        rates_multiplier = jnp.prod(
-            abundances.at[self.reactant_multipliers].get(mode="drop", fill_value=1.0),
-            axis=1,
-        )
+        # Optimization: Pad abundances with 1.0 to handle filler indices (set to N_species)
+        # This avoids the slower .at[...].get(mode="fill") operation.
+        padded_abundances = jnp.concatenate([abundances, jnp.array([1.0])])
+        
+        # Gather abundances: shape (n_reactions, 2)
+        reactant_abunds = padded_abundances[self.reactant_multipliers]
+        
+        # Multiply the two columns: shape (n_reactions,)
+        rates_multiplier = reactant_abunds[:, 0] * reactant_abunds[:, 1]
+        
         return rates * rates_multiplier
 
     @partial(jax.profiler.annotate_function, name="JNetwork._call__")
@@ -111,42 +121,90 @@ class Network:
         self.incidence = self.construct_incidence(self.species, self.reactions)
 
     def get_reactant_multipliers(self, incidence):
+        # # In order to correctly get the flux, we need to multiply the rates per reaction
+        # # by the abundances of the reactants. This is done by getting the indices of the
+        # # reactants that need to be multiplied by the abundances and ensure they are repeated
+        # # the correct number of times. Use double entries to avoid power in the computation.
+        # if isinstance(incidence, sparse.BCOO):
+        #     reactants_for_multiply = jnp.argwhere(incidence.todense().T < 0)
+        #     times_for_multiply = -incidence[
+        #         reactants_for_multiply[:, 1], reactants_for_multiply[:, 0]
+        #     ].todense()
+        # else:
+        #     reactants_for_multiply = jnp.argwhere(incidence.T < 0)
+        #     times_for_multiply = -incidence[
+        #         reactants_for_multiply[:, 1], reactants_for_multiply[:, 0]
+        #     ]
+        # # We cannot do multiplies with duplicate entries, so create an array
+        # # with two columns, one for each of the reactants. The second row
+        # # is filled with an unreachable index, which we ignore by using "drop" in the
+        # # multiply operation. See: https://github.com/jax-ml/jax/issues/9296
+        # filler_value = incidence.shape[0]
+        # reactant_multiplier = jnp.full((incidence.shape[1], 2), filler_value)
+        # for (reactant_idx, spec_idx), multiplier in zip(
+        #     reactants_for_multiply, times_for_multiply
+        # ):
+        #     # multiplier allows us to reactions with identical reactants: H + H -> H2
+        #     for i in range(multiplier):
+        #         # Write the first column if there is still a filler value:
+        #         if reactant_multiplier[reactant_idx, 0] == filler_value:
+        #             reactant_multiplier = reactant_multiplier.at[reactant_idx, 0].set(
+        #                 spec_idx
+        #             )
+        #         # Else, write the second column:
+        #         else:
+        #             reactant_multiplier = reactant_multiplier.at[reactant_idx, 1].set(
+        #                 spec_idx
+        #             )
+        # return reactant_multiplier
+    
         # In order to correctly get the flux, we need to multiply the rates per reaction
         # by the abundances of the reactants. This is done by getting the indices of the
         # reactants that need to be multiplied by the abundances and ensure they are repeated
         # the correct number of times. Use double entries to avoid power in the computation.
+        # Extract data to CPU numpy arrays for fast processing
         if isinstance(incidence, sparse.BCOO):
-            reactants_for_multiply = jnp.argwhere(incidence.todense().T < 0)
-            times_for_multiply = -incidence[
-                reactants_for_multiply[:, 1], reactants_for_multiply[:, 0]
-            ].todense()
+            # Extract indices and data where stoichiometry is negative (reactants)
+            # BCOO indices are (nse, 2) -> (species_idx, reaction_idx)
+            indices = np.array(incidence.indices)
+            data = np.array(incidence.data)
+
+            mask = data < 0
+            s_indices = indices[mask, 0]
+            r_indices = indices[mask, 1]
+            multipliers = -data[mask]
+
+            # Stack as (reaction_idx, species_idx)
+            reactants_for_multiply = np.stack((r_indices, s_indices), axis=1)
+            times_for_multiply = multipliers
         else:
-            reactants_for_multiply = jnp.argwhere(incidence.T < 0)
-            times_for_multiply = -incidence[
+            # Dense case: convert to numpy to avoid JAX dispatch overhead in loop
+            inc_np = np.array(incidence)
+            reactants_for_multiply = np.argwhere(inc_np.T < 0)
+            times_for_multiply = -inc_np[
                 reactants_for_multiply[:, 1], reactants_for_multiply[:, 0]
             ]
         # We cannot do multiplies with duplicate entries, so create an array
         # with two columns, one for each of the reactants. The second row
         # is filled with an unreachable index, which we ignore by using "drop" in the
         # multiply operation. See: https://github.com/jax-ml/jax/issues/9296
-        filler_value = incidence.shape[0] + 1
-        reactant_multiplier = jnp.full((incidence.shape[1], 2), filler_value)
+        filler_value = incidence.shape[0]
+        reactant_multiplier = np.full((incidence.shape[1], 2), filler_value, dtype=np.int32)
+
         for (reactant_idx, spec_idx), multiplier in zip(
             reactants_for_multiply, times_for_multiply
         ):
             # multiplier allows us to reactions with identical reactants: H + H -> H2
-            for i in range(multiplier):
+            for _ in range(int(multiplier)):
                 # Write the first column if there is still a filler value:
                 if reactant_multiplier[reactant_idx, 0] == filler_value:
-                    reactant_multiplier = reactant_multiplier.at[reactant_idx, 0].set(
-                        spec_idx
-                    )
+                    reactant_multiplier[reactant_idx, 0] = spec_idx
                 # Else, write the second column:
                 else:
-                    reactant_multiplier = reactant_multiplier.at[reactant_idx, 1].set(
-                        spec_idx
-                    )
-        return reactant_multiplier
+                    reactant_multiplier[reactant_idx, 1] = spec_idx
+        
+        return jnp.array(reactant_multiplier)
+
 
     def species_count(self):
         """
@@ -161,17 +219,37 @@ class Network:
         return self.incidence.shape[1]
 
     def construct_incidence(self, species, reactions):
+        import numpy as np
+        from scipy import sparse as sp_sparse
+
         index = {sp.name: idx for idx, sp in enumerate(species)}
-        incidence = jnp.zeros((len(species), len(reactions)), dtype=jnp.int16)  # S, R
-        # Fill the incidence matrix with all terms:
+        
+        # Build lists for COO construction on CPU
+        rows = []
+        cols = []
+        data = []
+
         for j, reaction in enumerate(reactions):
             for reactant in reaction.reactants:
-                incidence = incidence.at[index[reactant], j].add(-1)
+                rows.append(index[reactant])
+                cols.append(j)
+                data.append(-1)
             for product in reaction.products:
-                incidence = incidence.at[index[product], j].add(1)
+                rows.append(index[product])
+                cols.append(j)
+                data.append(1)
+
+        shape = (len(species), len(reactions))
+        
         if self.use_sparse:
-            incidence = sparse.BCOO.fromdense(incidence)
-        return incidence
+            # Create JAX BCOO directly from coordinate lists
+            indices = jnp.array(np.column_stack((rows, cols)))
+            data_arr = jnp.array(data, dtype=jnp.int16)
+            return sparse.BCOO((data_arr, indices), shape=shape)
+        else:
+            # Create dense matrix via scipy to avoid OOM on large zeros()
+            coo = sp_sparse.coo_matrix((data, (rows, cols)), shape=shape, dtype=np.int16)
+            return jnp.array(coo.todense())
 
     def get_index(self, species: str) -> int:
         """
@@ -266,7 +344,7 @@ class Network:
 
     def get_ode(self):
         # Always reset the jreactions
-        self.jcreations = []
+        self.jreactions = []
 
         # Import special reaction types that should not be vectorized
         from .reactions import (
@@ -285,6 +363,7 @@ class Network:
         if self.vectorize_reactions:
             reaction_groups = {}
             non_vectorizable_reactions = []
+            reordered_reactions = []
 
             for reaction in self.reactions:
                 # Skip vectorization for special photoreactions
@@ -311,13 +390,22 @@ class Network:
                 del params["molecularity"]
                 vectorized_reaction = reaction_classes[reaction_type](**params)
                 self.jreactions.append(vectorized_reaction())
+                
+                # Track reactions in the new order for incidence matrix reconstruction
+                reordered_reactions.extend(grouped_reactions)
 
             # Add non-vectorizable reactions individually
             for reaction in non_vectorizable_reactions:
-                self.jreactions.append(reaction())
+                self.jreactions.append(_ScalarRateTermWrapper(reaction()))
+                reordered_reactions.append(reaction)
+            
+            # Rebuild incidence matrix to match the vectorized order
+            # This is crucial: column j in incidence must match the j-th rate in the rate vector
+            incidence = self.construct_incidence(self.species, reordered_reactions)
         else:
             self.jreactions = [reaction() for reaction in self.reactions]
+            incidence = self.incidence
 
-        reactant_multipliers = self.get_reactant_multipliers(self.incidence)
+        reactant_multipliers = self.get_reactant_multipliers(incidence)
 
-        return JNetwork(self.incidence, self.jreactions, reactant_multipliers=reactant_multipliers)
+        return JNetwork(incidence, self.jreactions, reactant_multipliers=reactant_multipliers)

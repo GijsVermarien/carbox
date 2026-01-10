@@ -24,7 +24,7 @@ from carbox.cse_physics import CSEPhysics
 
 # Enable JAX 64-bit and NaN debugging
 jax.config.update("jax_enable_x64", True)
-jax.config.update("jax_debug_nans", True)
+# jax.config.update("jax_debug_nans", True)  # CRITICAL: Disable for performance
 
 
 # Hardcoded physical parameters (matching UCLCHEM test case)
@@ -57,13 +57,13 @@ PHYSICAL_PARAMS = {
     "vexp": 15.0,      # km/s
     "tstar": 2000.0,   # K (Temperature at r_init)
     "eps": 0.7,        # Temperature power law
-    "r_init": 1.0e14,  # cm
-    "r_final": 2.0e14, # cm
+    "r_init": 1.0e15,  # cm
+    "r_final": 2e15, # cm
 
     # Solver Parameters
-    "n_snapshots": 50,  # output timesteps (increased for detail)
+    "n_snapshots": 10,  # output timesteps (increased for detail)
     "rtol": 1.0e-5,
-    "atol": 1.0e-25, # Relaxed from 1e-25
+    "atol": 1.0e-20, # Relaxed from 1e-25
     "solver": "kvaerno5",  # lowercase required
     "linear_solver" : "sparse",
     # "solver": "tsit5",  # Explicit solver to avoid lineax TracerBoolConversionError
@@ -354,7 +354,7 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
         from carbox.solver import SPY, compute_reaction_rates
 
         jnetwork = results["jnetwork"]
-        rates = compute_reaction_rates(network, jnetwork, solution, config)
+        rates = compute_reaction_rates(jnetwork, solution, config)
 
         # Save rates to CSV
         import pandas as pd

@@ -1,7 +1,7 @@
 ============================================================
 Carbox Simulation Summary: gas_phase_only_cse
 ============================================================
-Timestamp: 2026-01-09T14:56:01.302209
+Timestamp: 2026-01-09T18:25:06.577380
 
 Physical Parameters:
   Total density: 8.71e+08 cm^-3
@@ -21,9 +21,9 @@ Network:
   Reactions: 2227
 
 Solver Statistics:
-  Total steps: 341
-  Accepted: 334
-  Rejected: 7
+  Total steps: 438
+  Accepted: 388
+  Rejected: 50
 
 Final Abundances (top 10):
   H2         4.343e+00 cm^-3

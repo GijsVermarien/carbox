@@ -7,3 +7,5 @@ plugins
 venv/
 notes.md
 carbox.egg-info
+changes.md
+results/
