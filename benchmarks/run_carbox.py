@@ -310,15 +310,8 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
         # Save rates to CSV
         import pandas as pd
 
-        # Create rate dataframe with reaction names as strings
-        # Format: "reactants -> products" (e.g., "H + H -> H2")
-        reaction_names = []
-        for reaction in network.reactions:
-            reactants_str = " + ".join(reaction.reactants)
-            products_str = " + ".join(reaction.products)
-            reaction_names.append(f"{reactants_str} -> {products_str}")
-
-        rates_df = pd.DataFrame(rates, columns=reaction_names)
+        reaction_ids = [reaction.reaction_id for reaction in network.reactions]
+        rates_df = pd.DataFrame(rates, columns=reaction_ids)
         # Add time column (convert from seconds to years)
         rates_df.insert(0, "time", solution.ts / SPY)
 
