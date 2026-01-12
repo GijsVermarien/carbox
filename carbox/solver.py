@@ -143,6 +143,8 @@ def solve_network(
 
     # Get time grid
     t_snapshots_sec = get_time_grid(config)
+    t_start_sec = t_snapshots_sec[0]
+    t_end_sec = t_snapshots_sec[-1]
 
     # Get solver
     solver = get_solver(config)

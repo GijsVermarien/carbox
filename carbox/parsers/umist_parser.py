@@ -77,15 +77,14 @@ class UMISTParser(BaseParser):
         df = pd.DataFrame(reactions_data, columns=columns[: len(reactions_data[0])])
 
         # Parse reactions
-        reactions = []
-        species_set = set()
+        parsed_reactions = df.apply(self.parse_reaction, axis=1)
+        reactions = parsed_reactions.dropna().tolist()
 
-        for _, row in df.iterrows():
-            reaction = self.parse_reaction(row)
-            if reaction is not None:
-                reactions.append(reaction)
-                species_set.update(reaction.reactants)
-                species_set.update(reaction.products)
+        # Get species set
+        species_set = set()
+        for reaction in reactions:
+            species_set.update(reaction.reactants)
+            species_set.update(reaction.products)
 
         # Create species list
         species = [Species(name, 0.0) for name in sorted(species_set)]

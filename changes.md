@@ -365,3 +365,35 @@ I recommend optimizing this by padding the abundance array with a dummy 1.0 valu
 "Memory-Efficient Initialization: The current construct_incidence creates a dense matrix of zeros (Species, Reactions) on the GPU before converting to sparse. For large networks (e.g., 500 species, 5000 reactions), this is inefficient. I will switch to using scipy.sparse to build the matrix on the CPU and then transfer it to JAX.
 Faster Setup Logic: The get_reactant_multipliers function currently calls .todense() on the sparse matrix and iterates over JAX arrays in a Python loop. This is extremely slow for large networks. I will refactor this to operate directly on the sparse indices using NumPy (CPU) before moving the final result to the GPU.
 "
+
+# Monday 12 Jan
+"Tasks complete. I'll summarize the optimizations. I addressed performance bottlenecks with these changes: one, I optimized network parsing in umist_parser.py with a faster, vectorized approach for large networks. Two, I reduced JIT compilation overhead in network.py by replacing a slow, loop-based implementation with an optimized, vectorized NumPy version. Three, I confirmed the code already uses a sparse linear solver, the most critical ODE solver optimization, controlled by the linear_solver parameter in SimulationConfig, which defaults to "sparse." These changes should significantly speed up run_cse.py, especially with large networks; the remaining bottleneck is likely the one-time JAX JIT compilation. My optimizations should substantially improve simulation performance.
+"
+
+
+# cse_1 part 2 
+    "rtol": 1.0e-3,
+    "atol": 1.0e-15, # Relaxed from 1e-25
+✓ Carbox benchmark complete: 42.87s
+
+but nonsense results
+
+    "rtol": 1.0e-5,
+    "atol": 1.0e-20, # Relaxed from 1e-25
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

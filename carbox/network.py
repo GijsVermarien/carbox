@@ -55,7 +55,7 @@ class JNetwork(eqx.Module):
     def get_rates(self, temperature, cr_rate, fuv_rate, visual_extinction, abundances):
         # List comprehension is okay for JIT, but it unrolls the loop.
         # For 'large' networks, this can make the graph massive.
-        return jnp.concatenate([
+        return jnp.hstack([
             r(temperature, cr_rate, fuv_rate, visual_extinction, abundances)
             for r in self.reactions
         ])
@@ -121,43 +121,6 @@ class Network:
         self.incidence = self.construct_incidence(self.species, self.reactions)
 
     def get_reactant_multipliers(self, incidence):
-        # # In order to correctly get the flux, we need to multiply the rates per reaction
-        # # by the abundances of the reactants. This is done by getting the indices of the
-        # # reactants that need to be multiplied by the abundances and ensure they are repeated
-        # # the correct number of times. Use double entries to avoid power in the computation.
-        # if isinstance(incidence, sparse.BCOO):
-        #     reactants_for_multiply = jnp.argwhere(incidence.todense().T < 0)
-        #     times_for_multiply = -incidence[
-        #         reactants_for_multiply[:, 1], reactants_for_multiply[:, 0]
-        #     ].todense()
-        # else:
-        #     reactants_for_multiply = jnp.argwhere(incidence.T < 0)
-        #     times_for_multiply = -incidence[
-        #         reactants_for_multiply[:, 1], reactants_for_multiply[:, 0]
-        #     ]
-        # # We cannot do multiplies with duplicate entries, so create an array
-        # # with two columns, one for each of the reactants. The second row
-        # # is filled with an unreachable index, which we ignore by using "drop" in the
-        # # multiply operation. See: https://github.com/jax-ml/jax/issues/9296
-        # filler_value = incidence.shape[0]
-        # reactant_multiplier = jnp.full((incidence.shape[1], 2), filler_value)
-        # for (reactant_idx, spec_idx), multiplier in zip(
-        #     reactants_for_multiply, times_for_multiply
-        # ):
-        #     # multiplier allows us to reactions with identical reactants: H + H -> H2
-        #     for i in range(multiplier):
-        #         # Write the first column if there is still a filler value:
-        #         if reactant_multiplier[reactant_idx, 0] == filler_value:
-        #             reactant_multiplier = reactant_multiplier.at[reactant_idx, 0].set(
-        #                 spec_idx
-        #             )
-        #         # Else, write the second column:
-        #         else:
-        #             reactant_multiplier = reactant_multiplier.at[reactant_idx, 1].set(
-        #                 spec_idx
-        #             )
-        # return reactant_multiplier
-    
         # In order to correctly get the flux, we need to multiply the rates per reaction
         # by the abundances of the reactants. This is done by getting the indices of the
         # reactants that need to be multiplied by the abundances and ensure they are repeated
@@ -174,35 +137,49 @@ class Network:
             r_indices = indices[mask, 1]
             multipliers = -data[mask]
 
-            # Stack as (reaction_idx, species_idx)
+            # Stack as (reaction_idx, species_idx) for clarity
             reactants_for_multiply = np.stack((r_indices, s_indices), axis=1)
             times_for_multiply = multipliers
         else:
             # Dense case: convert to numpy to avoid JAX dispatch overhead in loop
             inc_np = np.array(incidence)
-            reactants_for_multiply = np.argwhere(inc_np.T < 0)
-            times_for_multiply = -inc_np[
-                reactants_for_multiply[:, 1], reactants_for_multiply[:, 0]
-            ]
+            # argwhere is slow, let's use np.where
+            r_indices, s_indices = np.where(inc_np.T < 0)
+            reactants_for_multiply = np.stack((r_indices, s_indices), axis=1)
+            times_for_multiply = -inc_np[s_indices, r_indices]
+
+        # --- Vectorized replacement for the loop ---
+        
         # We cannot do multiplies with duplicate entries, so create an array
-        # with two columns, one for each of the reactants. The second row
-        # is filled with an unreachable index, which we ignore by using "drop" in the
-        # multiply operation. See: https://github.com/jax-ml/jax/issues/9296
+        # with two columns, one for each of the reactants.
         filler_value = incidence.shape[0]
         reactant_multiplier = np.full((incidence.shape[1], 2), filler_value, dtype=np.int32)
-
-        for (reactant_idx, spec_idx), multiplier in zip(
-            reactants_for_multiply, times_for_multiply
-        ):
-            # multiplier allows us to reactions with identical reactants: H + H -> H2
-            for _ in range(int(multiplier)):
-                # Write the first column if there is still a filler value:
-                if reactant_multiplier[reactant_idx, 0] == filler_value:
-                    reactant_multiplier[reactant_idx, 0] = spec_idx
-                # Else, write the second column:
-                else:
-                    reactant_multiplier[reactant_idx, 1] = spec_idx
         
+        # Repeat reactant entries based on their stoichiometry (multiplier)
+        # e.g., for H+H, the entry for H is repeated twice
+        expanded_reactants = np.repeat(reactants_for_multiply, times_for_multiply.astype(np.int32), axis=0)
+        
+        # Get unique reaction indices and the index where each reaction's reactants first appear
+        unique_r_indices, first_occurrence_indices = np.unique(expanded_reactants[:, 0], return_index=True)
+        
+        # Assign the first reactant for each reaction
+        reactant_multiplier[unique_r_indices, 0] = expanded_reactants[first_occurrence_indices, 1]
+        
+        # To find the second reactant, we can remove the first occurrences and repeat the process.
+        # This is an efficient way to find the "second" item in each group.
+        # Create a mask to select all but the first occurrences
+        mask = np.ones(len(expanded_reactants), dtype=bool)
+        mask[first_occurrence_indices] = False
+        
+        # Get the remaining reactants (which are the second reactants for each group)
+        second_reactant_entries = expanded_reactants[mask]
+        
+        # Get unique reaction indices and their first appearance in this *reduced* set
+        unique_r_indices_second, first_occurrence_indices_second = np.unique(second_reactant_entries[:, 0], return_index=True)
+        
+        # Assign the second reactant
+        reactant_multiplier[unique_r_indices_second, 1] = second_reactant_entries[first_occurrence_indices_second, 1]
+
         return jnp.array(reactant_multiplier)
 
 
