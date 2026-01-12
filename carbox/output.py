@@ -273,8 +273,7 @@ def save_reaction_rates(
     """
     output_path = prepare_output_directory(config)
 
-    # Use reaction type as column names (could be more descriptive)
-    reaction_names = [f"{r.reaction_type}_{i}" for i, r in enumerate(network.reactions)]
+    # Reaction rates are saved with numerical column names (0, 1, 2, ...)
 
     # Handle dynamic physics
     if config.physics_model is not None:
@@ -301,12 +300,9 @@ def save_reaction_rates(
 
     # 2. Add all reaction rates to the dictionary first
     # This avoids the "fragmentation" warning completely
-    for i, r in enumerate(network.reactions):
-        # Using a slightly more descriptive name: Index + Species
-        # e.g., "001_H2+OH->H2O+H"
-        name = f"{i:04d}_{r.reaction_type}" 
-        data[name] = rates[:, i]
-
+    for i in range(rates.shape[1]):
+            data[str(i)] = rates[:, i]
+            
     # 3. Create the DataFrame once
     df = pd.DataFrame(data)
 

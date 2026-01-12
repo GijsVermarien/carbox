@@ -38,7 +38,10 @@ reaction_by_shorthand_name = {
     _2,
     _3,
     _4,
-    _5: KAReaction(rtype, (r1, r2), (p1, p2, p3, p4), float(a), float(b), float(c))
+    _5,
+    original_index: KAReaction(
+        rtype, (r1, r2), (p1, p2, p3, p4), float(a), float(b), float(c), original_index=original_index
+    )
     for r in ["AD", "CD", "CE", "DR", "IN", "MN", "NN", "RA", "REA", "RR"]
 } | {
     # CP: k = cr_rate
@@ -59,7 +62,10 @@ reaction_by_shorthand_name = {
     _2,
     _3,
     _4,
-    _5: CPReaction(rtype, (r1, r2), (p1, p2, p3, p4), float(a)),
+    _5,
+    original_index: CPReaction(
+        rtype, (r1, r2), (p1, p2, p3, p4), float(a), original_index=original_index
+    ),
     # PH: F_UV * exp(-gamma * visual_extinction)
     "PH": lambda rtype,
     r1,
@@ -78,7 +84,10 @@ reaction_by_shorthand_name = {
     _2,
     _3,
     _4,
-    _5: PHReaction(rtype, (r1, r2), (p1, p2, p3, p4), float(a), float(b), float(c)),
+    _5,
+    original_index: PHReaction(
+        rtype, (r1, r2), (p1, p2, p3, p4), float(a), float(b), float(c), original_index=original_index
+    ),
     # CR: cr_rate * (T/300)^beta gamma / (1-omega)
     "CR": lambda rtype,
     r1,
@@ -97,8 +106,15 @@ reaction_by_shorthand_name = {
     _2,
     _3,
     _4,
-    _5: CRPhotoReaction(
-        rtype, (r1, r2), (p1, p2, p3, p4), float(a), float(b), float(c)
+    _5,
+    original_index: CRPhotoReaction(
+        rtype,
+        (r1, r2),
+        (p1, p2, p3, p4),
+        float(a),
+        float(b),
+        float(c),
+        original_index=original_index,
     ),
 }
 
@@ -221,7 +237,7 @@ if __name__ == "__main__":
 
     # Parse the reactions:
     reactions = [
-        reaction_by_shorthand_name[reac.iloc[0]](*reac)
+        reaction_by_shorthand_name[reac.iloc[0]](*reac, original_index=idx)
         for idx, reac in reactions_file.iterrows()
     ]
     # Create the reaction network and get the ODE system

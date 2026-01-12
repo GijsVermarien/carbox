@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from ..network import Network
-from ..reactions import CRPReaction, FUVReaction, KAReaction
+from ..reactions import CRPReaction, KAReaction, UMISTPhotoReaction
 from ..species import Species
 from .base_parser import BaseParser
 
@@ -76,15 +76,27 @@ class UMISTParser(BaseParser):
         ]
         df = pd.DataFrame(reactions_data, columns=columns[: len(reactions_data[0])])
 
-        # Parse reactions
-        parsed_reactions = df.apply(self.parse_reaction, axis=1)
-        reactions = parsed_reactions.dropna().tolist()
 
-        # Get species set
+        # # Parse reactions
+        # parsed_reactions = df.apply(self.parse_reaction, axis=1)
+        # reactions = parsed_reactions.dropna().tolist()
+
+        # # Get species set
+        # species_set = set()
+        # for reaction in reactions:
+        #     species_set.update(reaction.reactants)
+        #     species_set.update(reaction.products)
+
+        # Parse reactions
+        reactions = []
         species_set = set()
-        for reaction in reactions:
-            species_set.update(reaction.reactants)
-            species_set.update(reaction.products)
+
+        for _, row in df.iterrows():
+            reaction = self.parse_reaction(row)
+            if reaction is not None:
+                reactions.append(reaction)
+                species_set.update(reaction.reactants)
+                species_set.update(reaction.products)
 
         # Create species list
         species = [Species(name, 0.0) for name in sorted(species_set)]
@@ -96,9 +108,10 @@ class UMISTParser(BaseParser):
         """Parse a single UMIST reaction row"""
         try:
             # Parse reactants and products
-            reactants = self._parse_species_list(
-                row["reactant_1"]
-            ) + self._parse_species_list(row["reactant_2"])
+            reactants = (
+                self._parse_species_list(row["reactant_1"]) 
+                + self._parse_species_list(row["reactant_2"])
+                )
             products = (
                 self._parse_species_list(row["product_1"])
                 + self._parse_species_list(row["product_2"])
@@ -108,18 +121,19 @@ class UMISTParser(BaseParser):
 
             # Get reaction type
             reaction_type = row["reaction_type"]
+            reaction_id = row["reaction_number"] # Get reaction_id
 
             # Normalize parameters to standard Arrhenius form
             alpha, beta, gamma = self.normalize_arrhenius_params(row, "umist")
 
             # Map to appropriate reaction class
             if reaction_type in ["CP", "CR"]:
-                return CRPReaction(reaction_type, reactants, products, alpha)
+                return CRPReaction(reaction_type, reactants, products, alpha, reaction_id=reaction_id)
             elif reaction_type in ["PH", "PD"]:
-                return FUVReaction(reaction_type, reactants, products, alpha)
+                return UMISTPhotoReaction(reaction_type, reactants, products, alpha, beta, gamma, reaction_id=reaction_id)
             else:
                 return KAReaction(
-                    reaction_type, reactants, products, alpha, beta, gamma
+                    reaction_type, reactants, products, alpha, beta, gamma, reaction_id=reaction_id
                 )
 
         except Exception as e:

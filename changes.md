@@ -372,19 +372,94 @@ Faster Setup Logic: The get_reactant_multipliers function currently calls .toden
 
 
 # cse_1 part 2 
+
+## on leubeek
+PHYSICAL_PARAMS = {
+    "cr_rate": 1.0,  # s^-1
+    "fuv_field": 1.0,  # Habing units
+
+    # CSE Outflow Parameters
+    "mdot": 1.0e-5,    # M_sun/yr
+    "vexp": 15.0,      # km/s
+    "tstar": 2000.0,   # K (Temperature at r_init)
+    "eps": 0.7,        # Temperature power law
+    "r_init": 1.0e16,  # cm
+    "r_final": 1e18, # cm
+
+    # Solver Parameters
+    "n_snapshots": 100,  # output timesteps (increased for detail)
+    "rtol": 1.0e-5,
+    "atol": 1.0e-20, # Relaxed from 1e-25
+    "solver": "kvaerno5",  # lowercase required
+    "linear_solver" : "sparse",
+    "max_steps": 1048576,  # max steps, always use power of 16 (e.g., 4096, 65536)
+}
+Started on 12/1 at 15:11
+
+## on laptop
+Playing with tolerances
+van 1e15 tot 2e15 cm
+
     "rtol": 1.0e-3,
     "atol": 1.0e-15, # Relaxed from 1e-25
 ✓ Carbox benchmark complete: 42.87s
-
-but nonsense results
+rapid decline
 
     "rtol": 1.0e-5,
-    "atol": 1.0e-20, # Relaxed from 1e-25
+    "atol": 1.0e-15, 
+✓ Carbox benchmark complete: 66.49s
+rapid decline
+
+    "rtol": 1.0e-5,
+    "atol": 1.0e-18, 
+too long, gave up after 18 min
+
+    "rtol": 1.0e-4,
+    "atol": 1.0e-20, 
+gave up
 
 
+    "r_init": 1.0e16,  # cm
+    "r_final": 1.0e17, # cm
+    "rtol": 1.0e-3,
+    "atol": 1.0e-15, 
+✓ Carbox benchmark complete: 18.25s
+Drops down immediately 
+
+    "r_init": 1.0e16,  # cm
+    "r_final": 1.0e17, # cm
+    "rtol": 1.0e-5,
+    "atol": 1.0e-15, 
+✓ Carbox benchmark complete: 33.50s
+
+    "r_init": 1.0e16,  # cm
+    "r_final": 1.0e17, # cm
+    "rtol": 1.0e-5,
+    "atol": 1.0e-16, 
+✓ Carbox benchmark complete: 37.37s
+
+    "r_init": 1.0e16,  # cm
+    "r_final": 1.0e17, # cm
+    "rtol": 1.0e-5,
+    "atol": 1.0e-17, 
+✓ Carbox benchmark complete: 44.71s
+
+    "r_init": 1.0e16,  # cm
+    "r_final": 1.0e17, # cm
+    "rtol": 1.0e-5,
+    "atol": 1.0e-18, 
+✓ Carbox benchmark complete: 49.82s
+
+    "r_init": 1.0e16,  # cm
+    "r_final": 1.0e17, # cm
+    "rtol": 1.0e-5,
+    "atol": 1.0e-20, 
 
 
+rates komen niet overeen met de werkelijkheid
+"The issue is that get_ode reorders the reactions (grouping them by type for vectorization) to build the JNetwork, but it doesn't update the Network.reactions list to match this new order.
 
+When you later call save_reaction_rates (or any other output function), it iterates over the original Network.reactions list, but the rates vector from JNetwork corresponds to the reordered reactions. This causes a mismatch where rates are assigned to the wrong reactions in the output." 
 
 
 

@@ -55,6 +55,12 @@ class JNetwork(eqx.Module):
     def get_rates(self, temperature, cr_rate, fuv_rate, visual_extinction, abundances):
         # List comprehension is okay for JIT, but it unrolls the loop.
         # For 'large' networks, this can make the graph massive.
+        
+        # for i, reaction in enumerate(self.reactions):
+        #     rates = rates.at[i].set(reaction(temperature, cr_rate, fuv_rate))
+        #     if i == 8259:
+        #         jax.debug.print("Reaction 8259 rate: {rate}", rate=rates[i])
+        
         return jnp.hstack([
             r(temperature, cr_rate, fuv_rate, visual_extinction, abundances)
             for r in self.reactions
@@ -91,6 +97,11 @@ class JNetwork(eqx.Module):
         rates = self.get_rates(
             temperature, cr_rate, fuv_rate, visual_extinction, abundances
         )
+        # jax.debug.print("Reaction 8258 rate: {rate}", rate=rates[8258])
+        # jax.debug.print("Reaction 8259 rate: {rate}", rate=rates[8259])
+        # jax.debug.print("Reaction 8260 rate: {rate}", rate=rates[8260])
+
+
         # jax.debug.print("rates: {rates}", rates=rates)
         # Get the matrix that encodes the reactants that need to be multiplied to get the flux
         rates = self.multiply_rates_by_abundance(rates, abundances)
@@ -379,6 +390,11 @@ class Network:
             # Rebuild incidence matrix to match the vectorized order
             # This is crucial: column j in incidence must match the j-th rate in the rate vector
             incidence = self.construct_incidence(self.species, reordered_reactions)
+
+            # Update the network's reactions to match the reordered list
+            # This ensures that outputs (which iterate self.reactions) match the JNetwork rates
+            self.reactions = reordered_reactions
+            self.incidence = incidence
         else:
             self.jreactions = [reaction() for reaction in self.reactions]
             incidence = self.incidence

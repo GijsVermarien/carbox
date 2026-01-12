@@ -1,5 +1,7 @@
 from dataclasses import dataclass
+from typing import List, Union, Optional
 
+import jax
 import equinox as eqx
 import jax.numpy as jnp
 import numpy as np
@@ -48,18 +50,20 @@ class Reaction:
     reactants: list[str]
     products: list[str]
     molecularity: int
+    reaction_id: Optional[int] = None
 
-    def __init__(self, reaction_type, reactants, products):
+    def __init__(self, reaction_type, reactants, products, reaction_id: Optional[int] = None):
         self.reactants = [r for r in reactants if valid_species_check(r)]
         self.products = [p for p in products if valid_species_check(p)]
         self.reaction_type = reaction_type
         self.molecularity = np.array(self.reactants).shape[-1]
+        self.reaction_id = reaction_id
 
     def __str__(self):
         return f"{self.reactants} -> {self.products}"
 
     def __repr__(self):
-        return f"Reaction({self.reaction_type}, {self.reactants}, {self.products})\n"
+        return f"Reaction(id={self.reaction_id}, type={self.reaction_type}, {self.reactants}, {self.products})\n"
 
     def _reaction_rate_factory() -> JReactionRateTerm:
         # Abstract function to implement in subclasses
@@ -130,7 +134,8 @@ class CRPhotoReactionRateTerm(JReactionRateTerm):
         abundance_vector,
     ):
         return (
-            1.31e-17
+            # 1.31e-17
+            self.alpha
             * cr_rate
             * jnp.power(0.0033333333333333335 * temperature, self.beta)
             * self.gamma
@@ -324,7 +329,9 @@ class PHReactionRateTerm(JReactionRateTerm):
         visual_extinction,
         abundance_vector,
     ):
-        return self.alpha * jnp.exp(-self.gamma * visual_extinction * 4.65)
+        rate = self.alpha * uv_field * jnp.exp(-self.gamma * visual_extinction)
+        # jax.debug.print("PHReactionRateTerm: alpha={alpha}, uv_field={uv_field}, visual_extinction={visual_extinction}, gamma={gamma}, rate={rate}", alpha=self.alpha, uv_field=uv_field, visual_extinction=visual_extinction, gamma=self.gamma, rate=rate)
+        return rate
 
 class IonPol1RateTerm(JReactionRateTerm):
     alpha: jnp.ndarray
@@ -441,8 +448,8 @@ class CIonizationRateTerm(JReactionRateTerm):
 
 
 class KAReaction(Reaction):
-    def __init__(self, reaction_type, reactants, products, alpha, beta, gamma):
-        super().__init__(reaction_type, reactants, products)
+    def __init__(self, reaction_type, reactants, products, alpha, beta, gamma, reaction_id: Optional[int] = None):
+        super().__init__(reaction_type, reactants, products, reaction_id=reaction_id)
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
@@ -455,9 +462,9 @@ class KAReaction(Reaction):
 
 class KAFixedReaction(Reaction):
     def __init__(
-        self, reaction_type, reactants, products, alpha, beta, gamma, temperature
+        self, reaction_type, reactants, products, alpha, beta, gamma, temperature, reaction_id: Optional[int] = None
     ):
-        super().__init__(reaction_type, reactants, products)
+        super().__init__(reaction_type, reactants, products, reaction_id=reaction_id)
         self.reaction_coeff = (
             alpha
             * jnp.power(0.0033333333333333335 * temperature, beta)
@@ -469,8 +476,8 @@ class KAFixedReaction(Reaction):
 
 
 class CRPReaction(Reaction):
-    def __init__(self, reaction_type, reactants, products, alpha):
-        super().__init__(reaction_type, reactants, products)
+    def __init__(self, reaction_type, reactants, products, alpha, reaction_id: Optional[int] = None):
+        super().__init__(reaction_type, reactants, products, reaction_id=reaction_id)
         self.alpha = alpha
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
@@ -478,7 +485,7 @@ class CRPReaction(Reaction):
 
 
 class CRPhotoReaction(Reaction):
-    def __init__(self, reaction_type, reactants, products, alpha, beta, gamma):
+    def __init__(self, reaction_type, reactants, products, alpha, beta, gamma, reaction_id: Optional[int] = None):
         super().__init__(reaction_type, reactants, products)
         self.alpha = alpha
         self.beta = beta
@@ -496,7 +503,7 @@ class CRPhotoReaction(Reaction):
 
 
 class FUVReaction(Reaction):
-    def __init__(self, reaction_type, reactants, products, alpha):
+    def __init__(self, reaction_type, reactants, products, alpha,reaction_id: Optional[int] = None):
         super().__init__(reaction_type, reactants, products)
         self.alpha = alpha
 
@@ -505,7 +512,7 @@ class FUVReaction(Reaction):
 
 
 class H2FormReaction(Reaction):
-    def __init__(self, reaction_type, reactants, products, alpha, gas2dust):
+    def __init__(self, reaction_type, reactants, products, alpha, gas2dust,reaction_id: Optional[int] = None):
         super().__init__(reaction_type, reactants, products)
         self.alpha = alpha
         self.gas2dust = gas2dust
@@ -603,7 +610,7 @@ class UCLCHEMH2FormReaction(Reaction):
 
 
 class UCLCHEMPhotonReaction(Reaction):
-    def __init__(self, reaction_type, reactants, products, alpha, beta, gamma):
+    def __init__(self, reaction_type, reactants, products, alpha, beta, gamma,reaction_id: Optional[int] = None):
         super().__init__(reaction_type, reactants, products)
         self.alpha = alpha
         self.beta = beta
@@ -619,8 +626,8 @@ class UCLCHEMPhotonReaction(Reaction):
 
 
 class UMISTPhotoReaction(Reaction):
-    def __init__(self, reaction_type, reactants, products, alpha, beta, gamma):
-        super().__init__(reaction_type, reactants, products)
+    def __init__(self, reaction_type, reactants, products, alpha, beta, gamma, reaction_id: Optional[int] = None):
+        super().__init__(reaction_type, reactants, products, reaction_id=reaction_id)
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
@@ -637,7 +644,7 @@ class IonPol1Reaction(Reaction):
     k = α * β * (0.62 + 0.4767 * γ * sqrt(300/T))
     """
 
-    def __init__(self, reaction_type, reactants, products, alpha, beta, gamma):
+    def __init__(self, reaction_type, reactants, products, alpha, beta, gamma,reaction_id: Optional[int] = None):
         super().__init__(reaction_type, reactants, products)
         self.alpha = alpha
         self.beta = beta
@@ -654,7 +661,7 @@ class IonPol2Reaction(Reaction):
     k = α * β * (1.0 + 0.0967 * γ * sqrt(300/T) + γ² * 300/(10.526 * T))
     """
 
-    def __init__(self, reaction_type, reactants, products, alpha, beta, gamma):
+    def __init__(self, reaction_type, reactants, products, alpha, beta, gamma,reaction_id: Optional[int] = None):
         super().__init__(reaction_type, reactants, products)
         self.alpha = alpha
         self.beta = beta
