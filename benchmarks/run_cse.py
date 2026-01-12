@@ -58,14 +58,14 @@ PHYSICAL_PARAMS = {
     "tstar": 2000.0,   # K (Temperature at r_init)
     "eps": 0.7,        # Temperature power law
     "r_init": 1.0e15,  # cm
-    "r_final": 1e18, # cm
+    "r_final": 2e15, # cm
 
     # Solver Parameters
     "n_snapshots": 100,  # output timesteps (increased for detail)
     "rtol": 1.0e-5,
     "atol": 1.0e-20, # Relaxed from 1e-25
     "solver": "kvaerno5",  # lowercase required
-    "linear_solver" : "lu",
+    "linear_solver" : "sparse",
     "max_steps": 65536,  # max steps, always use power of 16 (e.g., 4096, 65536)
 }
 
