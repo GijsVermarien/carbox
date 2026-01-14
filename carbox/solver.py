@@ -105,7 +105,7 @@ def solve_network(
 
     Returns
     -------
-    solution : diffrax.Solution
+    solution : dx.Solution
         Integration results with:
         - ts: time array [s]
         - ys: abundance array [n_snapshots, n_species]
@@ -132,7 +132,7 @@ def solve_network(
         n, T, av, r = physics.get_conditions(t)
 
         # Chemical source/sink term (jnetwork captured from closure)
-        dy_chem = jnetwork(t, y, T, config.cr_rate, config.fuv_field, av)
+        dy_chem = jnetwork(t, y, T, n, config.cr_rate, config.fuv_field, av)
 
         # Dilution term due to spherical expansion: d(n_i)/dt = -2 * (v/r) * n_i
         v_cgs = physics.vexp * physics.KM_CM
@@ -172,6 +172,7 @@ def solve_network(
     solution = _solve(t_start_sec, t_end_sec, y0, physics, t_snapshots_sec)
 
     return solution
+
 
 
 def get_time_grid(config: SimulationConfig) -> jnp.ndarray:
@@ -325,7 +326,7 @@ def compute_derivatives(
         n, T, av, r = physics.get_conditions(t)
 
         # Chemical source/sink term
-        dy_chem = jnetwork(t, y, T, config.cr_rate, config.fuv_field, av)
+        dy_chem = jnetwork(t, y, T, n, config.cr_rate, config.fuv_field, av)
         v_cgs = physics.vexp * physics.KM_CM
         dilution = -2 * (v_cgs / r) * y
         return dy_chem + dilution
@@ -369,7 +370,9 @@ def compute_reaction_rates(
 
     def _compute_single(t, y):
         n, T, av, r = physics.get_conditions(t)
-        return jnetwork.get_rates(T, config.cr_rate, config.fuv_field, av, y)
+        # Convert fractional abundances to number densities before passing to get_rates
+        abundances_num_density = y * n
+        return jnetwork.get_rates(T, config.cr_rate, config.fuv_field, av, abundances_num_density)
 
     # Vectorize over time and state
     @eqx.filter_jit

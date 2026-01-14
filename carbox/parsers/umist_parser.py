@@ -102,7 +102,7 @@ class UMISTParser(BaseParser):
         species = [Species(name, 0.0) for name in sorted(species_set)]
 
         # Create network
-        return Network(species, reactions, use_sparse=True, vectorize_reactions=True)
+        return Network(species, reactions, use_sparse=False, vectorize_reactions=True)
 
     def parse_reaction(self, row) -> Optional[KAReaction]:
         """Parse a single UMIST reaction row"""

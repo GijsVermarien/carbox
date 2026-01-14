@@ -79,6 +79,12 @@ NETWORK_CONFIGS = {
         "input_format": "uclchem",
         "initial_conditions": "initial_conditions/gas_phase_only_initial.yaml",
     },
+    "umist22": {
+        "description": "Large gas-phase chemistry from UMIST22 database",
+        "input_file": "../data/umist22.csv",
+        "input_format": "umist",
+        "initial_conditions": "initial_conditions/orich_cse_umist.yaml",
+    },
 }
 
 

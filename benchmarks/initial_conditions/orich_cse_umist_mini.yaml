@@ -1,17 +1,30 @@
 network: umist
 description: Initial abundances for an O-rich CSE 
 abundances:
-  H: 0.5
-  H2: 0.25
-  He: 0.1000000014901161
-  O: 0.000334
-  E-: 0.0001823239
-  C+: 0.000177
-  N: 6.18e-05
-  S+: 3.51e-06
-  Si+: 1.78e-06
-  C: 1.0e-10
+  H:    0.0
+  H2:   0.5
+  He:   0.85E-1
+  e-:   0.0
+  CO:   1.50E-04
+  N2:   2.00E-05
+  H2O:  1.075e-04
+  HCN:  1.295e-07
+  CO2:  1.50E-07
+  NH3:  3.125e-07
+  SO:   1.53e-06
+  CS:   2.785e-08
+  H2S:  0.875e-05
+  SO2:  1.86e-06
+  SiO:  1.355e-05
+  SiS:  4.765e-07
+  PO:   3.875e-08
+  PN:   0.75e-08
+  HCl:  0.50E-08
+  HF:   0.50E-08
+  Mg:   0.50E-08
+  Na:   0.50E-08
+  Fe:   0.50E-08
 metadata:
-  n_species: 12
-  total_abundance: 0.8507627053901161
+  n_species: 22
+  total_abundance: 1
   units: fractional (relative to H nuclei density)

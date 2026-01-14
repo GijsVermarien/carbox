@@ -57,13 +57,13 @@ PHYSICAL_PARAMS = {
     "vexp": 15.0,      # km/s
     "tstar": 2000.0,   # K (Temperature at r_init)
     "eps": 0.7,        # Temperature power law
-    "r_init": 1.0e16,  # cm
-    "r_final": 1.0e17, # cm
+    "r_init": 1e16,  # cm
+    "r_final": 1.1e17, # cm
 
     # Solver Parameters
     "n_snapshots": 100,  # output timesteps (increased for detail)
     "rtol": 1.0e-5,
-    "atol": 1.0e-18,
+    "atol": 1.0e-20,
     "solver": "kvaerno5",  # lowercase required
     "linear_solver" : "sparse",
     "max_steps": 65536,  # max steps, always use power of 16 (e.g., 4096, 65536)
@@ -114,7 +114,14 @@ NETWORK_CONFIGS = {
         "input_file": "../data/umist22.csv",
         "input_format": "umist",
         "initial_conditions": "initial_conditions/orich_cse_umist.yaml",
+    },
+    "orich_cse_mini": {
+        "description": "UMIST Rate22 network with O-rich parent species",
+        "input_file": "../data/umist22_mini.csv",
+        "input_format": "umist",
+        "initial_conditions": "initial_conditions/orich_cse_umist.yaml",
     }
+
 }
 
 
@@ -243,6 +250,7 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
         rtol=PHYSICAL_PARAMS["rtol"],
         atol=PHYSICAL_PARAMS["atol"],
         solver=PHYSICAL_PARAMS["solver"],
+        linear_solver=PHYSICAL_PARAMS["linear_solver"],
         max_steps=PHYSICAL_PARAMS["max_steps"],
         output_dir=str(output_path),
         run_name=network_name,
