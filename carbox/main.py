@@ -119,7 +119,7 @@ def run_simulation(
     # Step 2: Initialize abundances
     if verbose:
         print("Initializing abundances...")
-    y0 = initialize_abundances(network, config)
+    y0 = initialize_abundances(network, config, verbose=verbose)
 
     if verbose:
         print(abundance_summary(network, y0, top_n=8))
@@ -261,7 +261,7 @@ def solve(network_bundle, config):
 
     jnetwork = network_bundle["jnetwork"]
     network = network_bundle["network"]
-    y0 = initialize_abundances(network, config)
+    y0 = initialize_abundances(network, config, verbose=False)
     solution = solve_network(jnetwork, y0, config)
 
     return solution
