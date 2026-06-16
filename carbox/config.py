@@ -66,6 +66,14 @@ class SimulationConfig:
             Save dy/dt at each snapshot
         save_rates : bool
             Save reaction rates at each snapshot
+        save_metadata : bool
+            Save simulation metadata
+        save_summary : bool
+            Save summary report
+        save_all : Optional[bool]
+            If None, use individual flags.
+            If True, save all outputs (overrides individual flags).
+            If False, save nothing (overrides individual flags).
         run_name : str
             Identifier for this run
     """
@@ -107,6 +115,9 @@ class SimulationConfig:
     save_abundances: bool = True
     save_derivatives: bool = False
     save_rates: bool = False
+    save_metadata: bool = True
+    save_summary: bool = True
+    save_all: Optional[bool] = None
     run_name: str = "carbox_run"
 
     @classmethod

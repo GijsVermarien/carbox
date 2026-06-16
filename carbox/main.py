@@ -169,6 +169,11 @@ def run_simulation(
 
     computation_time = (datetime.now() - start_time).total_seconds()
 
+    # override individual save flags if save_all is set
+    if config.save_all is not None:
+        config.save_abundances = config.save_derivatives = config.save_rates = \
+            config.save_metadata = config.save_summary = config.save_all
+
     # Always save abundances
     if config.save_abundances:
         save_abundances(solution, network, config)
@@ -188,8 +193,10 @@ def run_simulation(
         save_reaction_rates(rates, solution.ts, network, config)
 
     # Save metadata and summary
-    save_metadata(config, network, solution, computation_time)
-    save_summary_report(solution, network, config)
+    if config.save_metadata:
+        save_metadata(config, network, solution, computation_time)
+    if config.save_summary:
+        save_summary_report(solution, network, config)
 
     if verbose:
         print()
@@ -216,13 +223,13 @@ def main():
 Examples:
   # Run with default parameters
   python -m carbox.main --input data/network.csv
-  
+
   # Use configuration file
   python -m carbox.main --input data/network.csv --config my_config.yaml
-  
+
   # Specify format explicitly
   python -m carbox.main --input data/network.csv --format umist
-  
+
   # Custom output directory and run name
   python -m carbox.main --input data/network.csv --output results/ --name test_run
         """,
