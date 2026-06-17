@@ -240,7 +240,7 @@ def parse_network(network_file: str, format_type: Optional[str] = None):
     return {"network": network, "jnetwork": jnetwork}
 
 
-def solve(network_bundle, config):
+def solve(network_bundle, config, rate_modifiers=None):
     """
     Solve the chemical kinetics ODE system for a given network and configuration.
 
@@ -262,7 +262,8 @@ def solve(network_bundle, config):
     jnetwork = network_bundle["jnetwork"]
     network = network_bundle["network"]
     y0 = initialize_abundances(network, config, verbose=False)
-    solution = solve_network(jnetwork, y0, config)
+    solution = solve_network(jnetwork, y0, config,
+                             rate_modifiers=rate_modifiers)
 
     return solution
 
