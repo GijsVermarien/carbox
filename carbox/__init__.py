@@ -16,7 +16,7 @@ Example
 """
 
 from .config import SimulationConfig
-from .main import run_simulation
+from .main import run_simulation, parse_network, solve
 from .network import JNetwork, Network
 from .parsers import parse_chemical_network
 
@@ -24,6 +24,8 @@ __all__ = [
     "SimulationConfig",
     "run_simulation",
     "parse_chemical_network",
+    "parse_network",
+    "solve",
     "Network",
     "JNetwork",
 ]

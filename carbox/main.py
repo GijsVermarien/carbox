@@ -119,7 +119,7 @@ def run_simulation(
     # Step 2: Initialize abundances
     if verbose:
         print("Initializing abundances...")
-    y0 = initialize_abundances(network, config)
+    y0 = initialize_abundances(network, config, verbose=verbose)
 
     if verbose:
         print(abundance_summary(network, y0, top_n=8))
@@ -212,6 +212,59 @@ def run_simulation(
         "config": config,
         "computation_time": computation_time,
     }
+
+
+def parse_network(network_file: str, format_type: Optional[str] = None):
+    """
+    Load a chemical reaction network from file and compile JAX ODE system.
+
+    Parameters
+    ----------
+    network_file : str
+        Path to reaction network file
+    format_type : str, optional
+        Network format ('uclchem', 'umist', 'latent_tgas')
+        If None, auto-detect based on file extension
+
+    Returns
+    -------
+    dict
+        Dictionary containing:
+        - 'network': Parsed reaction network object
+        - 'jnetwork': Compiled JAX ODE system
+    """
+
+    network = parse_chemical_network(network_file, format_type)
+    jnetwork = network.get_ode()
+
+    return {"network": network, "jnetwork": jnetwork}
+
+
+def solve(network_bundle, config):
+    """
+    Solve the chemical kinetics ODE system for a given network and configuration.
+
+    Parameters
+    ----------
+    network_bundle : dict
+        Dictionary containing:
+        - 'network': Parsed reaction network object
+        - 'jnetwork': Compiled JAX ODE system
+    config : SimulationConfig
+        Simulation configuration
+
+    Returns
+    -------
+    solution : Diffrax solution object
+        Object containing time points, abundances, and solver statistics
+    """
+
+    jnetwork = network_bundle["jnetwork"]
+    network = network_bundle["network"]
+    y0 = initialize_abundances(network, config, verbose=False)
+    solution = solve_network(jnetwork, y0, config)
+
+    return solution
 
 
 def main():
