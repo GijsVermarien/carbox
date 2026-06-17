@@ -55,6 +55,7 @@ def solve_network(
     jnetwork: JNetwork,
     y0: jnp.ndarray,
     config: SimulationConfig,
+    rate_modifiers: Tuple[float] = None,
 ) -> dx.Solution:
     """
     Solve chemical network ODE system.
@@ -86,6 +87,15 @@ def solve_network(
     # Get physical parameters as JAX arrays
     params = config.get_physical_params_jax()
 
+    if rate_modifiers is None:
+        rate_modifier_a = jnp.ones(jnetwork.reactions_number)
+        rate_modifier_b = jnp.zeros(jnetwork.reactions_number)
+    else:
+        rate_modifier_a, rate_modifier_b = rate_modifiers
+
+    params["rate_modifier_a"] = rate_modifier_a  # default 1: no modification (a*rate + b)
+    params["rate_modifier_b"] = rate_modifier_b  # default 0: no modification (a*rate + b)
+
     # Define ODE term
     ode_term = dx.ODETerm(
         lambda t, y, args: jnetwork(
@@ -95,6 +105,8 @@ def solve_network(
             args["cr_rate"],
             args["fuv_field"],
             args["visual_extinction"],
+            args["rate_modifier_a"],
+            args["rate_modifier_b"],
         )
     )
 
@@ -139,6 +151,7 @@ def solve_network(
         saveat=dx.SaveAt(ts=t_snapshots_sec),
         args=params,
         max_steps=config.max_steps,
+        adjoint=dx.RecursiveCheckpointAdjoint()
     )
 
     return solution
@@ -183,6 +196,8 @@ def compute_derivatives(
             params["cr_rate"],
             params["fuv_field"],
             params["visual_extinction"],
+            params["rate_modifier_a"],
+            params["rate_modifier_b"],
         )
         dy = dy.at[i].set(dy_i)
 
