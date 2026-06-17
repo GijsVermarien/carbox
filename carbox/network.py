@@ -169,6 +169,9 @@ class Network:
         To scale the rate of reaction 10 by some_scaling_value, we can set
          modify_rates_index = [10], modify_rates_value = [some_scaling_value], and then multiply the original rates by the scaling value in the ODE function.
         """
+
+        assert len(modify_rates_index) == len(modify_rates_value), "In get_rate_modifiers: indices and values must have the same length"
+
         rate_modifier_a = jnp.ones(self.reaction_count())  # default to 1.0 (no modification)
         rate_modifier_b = jnp.zeros(self.reaction_count())  # default to 0.0 (no modification)
         for idx, value in zip(modify_rates_index, modify_rates_value):
@@ -183,6 +186,9 @@ class Network:
         For example, to scale the rate of reaction 10 by some_scaling_value, we can set
          scale_rates_index = [10] and scale_rates_value = [some_scaling_value], and then multiply the original rates by the scaling value in the ODE function.
         """
+
+        assert len(scale_rates_index) == len(scale_rates_value), "In get_rate_scalings: length of indices and values must be the same"
+
         rate_modifier_a = jnp.ones(self.reaction_count())  # default to 1.0 (no modification)
         rate_modifier_b = jnp.zeros(self.reaction_count())  # default to 0.0 (no modification)
         for idx, value in zip(scale_rates_index, scale_rates_value):
