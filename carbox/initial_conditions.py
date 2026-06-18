@@ -71,6 +71,10 @@ def initialize_abundances(network: Network, config: SimulationConfig, verbose: b
         else:
             print(f"Warning: Species '{species_name}' in config not found in network")
 
+    idx_tgas = network.get_index("TGAS")
+    assert idx_tgas == n_species - 1, "TGAS must be the last species in the network for this setup"
+    y0 = y0.at[idx_tgas].set(config.temperature)  # Set TGAS initial abundance to 0
+
     return y0
 
 
