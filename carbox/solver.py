@@ -101,7 +101,7 @@ def solve_network(
         lambda t, y, args: jnetwork(
             t,
             y,
-            args["temperature"],
+            #args["temperature"],
             args["cr_rate"],
             args["fuv_field"],
             args["visual_extinction"],
