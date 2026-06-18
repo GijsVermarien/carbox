@@ -4,7 +4,7 @@ import pandas as pd
 
 from ..network import Network
 from ..reactions import CRPReaction, FUVReaction, KAReaction
-from ..cooling import CoolingRate
+from ..thermo import ThermoRate
 from ..species import Species
 from .base_parser import BaseParser
 
@@ -88,8 +88,8 @@ class LatentTGASParser(BaseParser):
                 return KAReaction(
                     reaction_type, reactants, products, alpha, beta, gamma
                 )
-            elif reaction_type == "COOL":
-                return CoolingRate(reaction_type, reactants, products)
+            elif reaction_type == "THERMO":
+                return ThermoRate(reaction_type, reactants, products)
             else:
                 raise ValueError(f"Unknown reaction type: {reaction_type}")
 
