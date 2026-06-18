@@ -7,8 +7,11 @@ import jax
 import jax.numpy as jnp
 from jax.experimental import sparse
 
+from .index import Idx
+
 from .reactions import JReactionRateTerm, Reaction
 from .species import Species
+from carbox import species
 
 
 class JNetwork(eqx.Module):
@@ -16,10 +19,12 @@ class JNetwork(eqx.Module):
     reactions: List[JReactionRateTerm]
     reactant_multipliers: jnp.array
     reactions_number: int
+    idx: Idx
 
-    def __init__(self, incidence, reactions, dense=True):
+    def __init__(self, incidence, reactions, idx, dense=True):
         self.incidence = incidence  # S, R
         self.reactions = reactions  # R
+        self.idx = idx # pytree class containing the indices of the species, e.g., self.idx.H gives 0, i.e., the index of H in the species list
         self.reactant_multipliers = self.get_reactant_multipliers(incidence) # R, 2 (max 2 reactants for now, can be extended if needed)
         self.reactions_number = self.reactant_multipliers.shape[0]
 
@@ -62,7 +67,7 @@ class JNetwork(eqx.Module):
         return reactant_multiplier
 
     @jax.jit
-    def get_rates(self, temperature, cr_rate, fuv_rate, visual_extinction, abundances):
+    def get_rates(self, temperature, cr_rate, fuv_rate, visual_extinction, abundances, idx):
         """
         Get the reaction rates for the given temperature, cosmic ray ionisation rate,
         FUV radiation field, and abundance vector.
@@ -72,9 +77,10 @@ class JNetwork(eqx.Module):
         # for i, reaction in enumerate(self.reactions):
         #     rates = rates.at[i].set(reaction(temperature, cr_rate, fuv_rate))
         # return rates
+
         return jnp.hstack(
             [
-                reaction(temperature, cr_rate, fuv_rate, visual_extinction, abundances)
+                reaction(temperature, cr_rate, fuv_rate, visual_extinction, abundances, idx)
                 for reaction in self.reactions
             ]
         )
@@ -97,8 +103,8 @@ class JNetwork(eqx.Module):
     def __call__(
         self,
         time: jnp.array,
-        abundances: jnp.array,
-        temperature: jnp.array,
+        x: jnp.array,
+        # temperature: jnp.array,
         # density: jnp.array,
         cr_rate: jnp.array,
         fuv_rate: jnp.array,
@@ -106,10 +112,14 @@ class JNetwork(eqx.Module):
         rate_modifier_a: jnp.array, # default to 1.0, can be used to scale the rates
         rate_modifier_b: jnp.array, # default to 0.0, can be used to set the rates to a specific value when rate_modifier_a = 0 (overriding the original rates)
     ) -> jnp.array:
+
+        temperature = x[self.idx.TGAS]
+        abundances = x[:-1]  # Get all species abundances (excluding TGAS)
+
         # abundances = abundances * density
         # Calculate the reaction rates (pass abundances for self-shielding reactions)
         rates = self.get_rates(
-            temperature, cr_rate, fuv_rate, visual_extinction, abundances
+            temperature, cr_rate, fuv_rate, visual_extinction, abundances, self.idx
         )
 
         # this is to modify the rates without having to recompile the network.
@@ -122,6 +132,7 @@ class JNetwork(eqx.Module):
         # jax.debug.print("rates: {rates}", rates=rates)
         # Get the matrix that encodes the reactants that need to be multiplied to get the flux
         rates = self.multiply_rates_by_abundance(rates, abundances)
+
         # Calculate the change in abundances
         # TODO: check that we are not loosing too much precision with the matmul?
         # Use BCCOO to avoid conversion to dense
@@ -137,6 +148,7 @@ class Network:
     incidence: jnp.array
     use_sparse: bool
     vectorize_reactions: bool
+    idx: Idx
 
     def __init__(self, species, reactions, use_sparse=True, vectorize_reactions=True):
         self.species = species  # S
@@ -147,6 +159,12 @@ class Network:
 
         # Create the incidence matrix (S species, R reactions)
         self.incidence = self.construct_incidence(self.species, self.reactions)
+
+        self.idx = self.init_indexes()
+
+    def init_indexes(self):
+        species_names = [x.name for x in self.species]
+        return Idx({k: i for i, k in enumerate(species_names)})
 
     def species_count(self):
         """
@@ -214,6 +232,12 @@ class Network:
         Get the index of a species in the network.
         """
         return self.species.index(species)
+
+    def get_indexes(self, species_list: List[str]) -> List[int]:
+        """
+        Get the indices of a list of species in the network.
+        """
+        return [self.get_index(species) for species in species_list]
 
     def get_elemental_contents(self, elements=["C", "H", "O", "charge"]):
         """
@@ -306,9 +330,9 @@ class Network:
 
         # Import special reaction types that should not be vectorized
         from .reactions import (
-            CIonizationReaction,
-            COPhotoDissReaction,
             H2PhotoDissReaction,
+            COPhotoDissReaction,
+            CIonizationReaction,
         )
 
         # Types that should not be vectorized due to unique parameters
@@ -353,4 +377,5 @@ class Network:
                 self.jreactions.append(reaction())
         else:
             self.jreactions = [reaction() for reaction in self.reactions]
-        return JNetwork(self.incidence, self.jreactions)
+
+        return JNetwork(self.incidence, self.jreactions, self.idx)
