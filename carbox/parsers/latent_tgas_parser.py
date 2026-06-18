@@ -4,6 +4,7 @@ import pandas as pd
 
 from ..network import Network
 from ..reactions import CRPReaction, FUVReaction, KAReaction
+from ..cooling import CoolingRate
 from ..species import Species
 from .base_parser import BaseParser
 
@@ -35,7 +36,7 @@ class LatentTGASParser(BaseParser):
     def parse_network(self, filepath: str) -> Network:
         """Parse latent_tgas reactions file and return Network"""
         # Read CSV file
-        df = pd.read_csv(filepath)
+        df = pd.read_csv(filepath, comment='#')
 
         # Parse reactions
         reactions = []
@@ -47,6 +48,15 @@ class LatentTGASParser(BaseParser):
                 reactions.append(reaction)
                 species_set.update(reaction.reactants)
                 species_set.update(reaction.products)
+
+        for species_name in species_set:
+            if species_name.lower() == "tgas":
+                species_set.remove(species_name)
+                species_set.add("TGAS")  # Ensure TGAS is uppercase for consistency
+
+        if "TGAS" not in species_set:
+            print("Warning: TGAS species not found in latent_tgas reactions. Adding TGAS to species list.")
+            species_set.add("TGAS")  # Ensure TGAS is included in the species list
 
         # Create species list
         species = [Species(name, 0.0) for name in sorted(species_set)]
@@ -78,9 +88,13 @@ class LatentTGASParser(BaseParser):
                 return KAReaction(
                     reaction_type, reactants, products, alpha, beta, gamma
                 )
+            elif reaction_type == "COOL":
+                return CoolingRate(reaction_type, reactants, products)
             else:
                 raise ValueError(f"Unknown reaction type: {reaction_type}")
 
         except Exception as e:
-            print(f"Warning: Failed to parse latent_tgas reaction: {e}")
-            return None
+            # redundant to raise here since the caller will catch and log, but kept in case of raising a warning instead
+            raise ValueError(f"Error parsing reaction: {e}")
+            # print(f"Warning: Failed to parse latent_tgas reaction: {e}")
+            # return None
