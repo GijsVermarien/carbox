@@ -4,6 +4,8 @@ import equinox as eqx
 import jax.numpy as jnp
 import numpy as np
 
+from .index import Idx
+
 REACTION_SKIP_LIST = ["CRPHOT", "CRP", "PHOTON"]
 
 
@@ -91,6 +93,7 @@ class KAReaction(Reaction):
                 uv_field,
                 visual_extinction,
                 abundance_vector,
+                idx,
             ):
                 # α(T/300K​)^βexp(−γ/T)
                 return (
@@ -126,6 +129,7 @@ class KAFixedReaction(Reaction):
                 uv_field,
                 visual_extinction,
                 abundance_vector,
+                idx,
             ):
                 return self.reaction_coeff
 
@@ -148,6 +152,7 @@ class CRPReaction(Reaction):
                 uv_field,
                 visual_extinction,
                 abundance_vector,
+                idx,
             ):
                 return cr_rate * self.alpha
 
@@ -174,6 +179,7 @@ class CRPhotoReaction(Reaction):
                 uv_field,
                 visual_extinction,
                 abundance_vector,
+                idx,
             ):
                 return (
                     1.31e-17
@@ -209,6 +215,7 @@ class FUVReaction(Reaction):
                 uv_field,
                 visual_extinction,
                 abundance_vector,
+                idx,
             ):
                 return self.alpha * uv_field
 
@@ -233,6 +240,7 @@ class H2FormReaction(Reaction):
                 uv_field,
                 visual_extinction,
                 abundance_vector,
+                idx,
             ):
                 return 100.0 * self.gas2dust * self.alpha
 
@@ -331,6 +339,7 @@ class UCLCHEMH2FormReaction(Reaction):
                 uv_field,
                 visual_extinction,
                 abundance_vector,
+                idx,
             ):
                 gas_temp = temperature
                 dust_temp = temperature
@@ -470,6 +479,7 @@ class UCLCHEMPhotonReaction(Reaction):
                 uv_field,
                 visual_extinction,
                 abundance_vector,
+                idx,
             ):
                 return (
                     self.alpha
@@ -506,6 +516,7 @@ class UMISTPhotoReaction(Reaction):
                 uv_field,
                 visual_extinction,
                 abundance_vector,
+                idx,
             ):
                 return self.alpha * jnp.exp(-self.gamma * visual_extinction * 4.65)
 
@@ -539,6 +550,7 @@ class IonPol1Reaction(Reaction):
                 uv_field,
                 visual_extinction,
                 abundance_vector,
+                idx,
             ):
                 return (
                     self.alpha
@@ -575,6 +587,7 @@ class IonPol2Reaction(Reaction):
                 uv_field,
                 visual_extinction,
                 abundance_vector,
+                idx,
             ):
                 sqrt_term = 0.0967 * self.gamma * jnp.sqrt(300.0 / temperature)
                 quadratic_term = self.gamma**2 * 300.0 / (10.526 * temperature)
@@ -602,6 +615,7 @@ class GARReaction(Reaction):
                 uv_field,
                 visual_extinction,
                 abundance_vector,
+                idx,
             ):
                 return NotImplementedError
 
@@ -649,6 +663,7 @@ class H2PhotoDissReaction(Reaction):
                 uv_field,
                 visual_extinction,
                 abundance_vector,
+                idx,
             ):
                 n_h2 = abundance_vector[self.h2_species_index]
                 n_h2_column = compute_column_density(n_h2, self.cloud_radius_pc)
@@ -704,6 +719,7 @@ class COPhotoDissReaction(Reaction):
                 uv_field,
                 visual_extinction,
                 abundance_vector,
+                idx,
             ):
                 n_h2 = abundance_vector[self.h2_species_index]
                 n_co = abundance_vector[self.co_species_index]
@@ -769,6 +785,7 @@ class CIonizationReaction(Reaction):
                 uv_field,
                 visual_extinction,
                 abundance_vector,
+                idx,
             ):
                 n_c = abundance_vector[self.c_species_index]
                 n_h2 = abundance_vector[self.h2_species_index]
