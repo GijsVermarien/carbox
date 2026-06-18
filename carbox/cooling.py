@@ -1,36 +1,5 @@
-from .reactions import JReactionRateTerm, Reaction
 import jax
 import jax.numpy as jnp
-
-class CoolingRate(Reaction):
-    def __init__(self, reaction_type, reactants, products):
-        super().__init__(reaction_type, reactants, products)
-
-    def _reaction_rate_factory(self) -> JReactionRateTerm:
-        class CoolingRateTerm(JReactionRateTerm):
-            #alpha: float
-
-            def __call__(
-                self,
-                temperature,
-                cr_rate,
-                uv_field,
-                visual_extinction,
-                abundance_vector,
-                idx
-            ):
-                cool = cooling_Lyalpha(abundance_vector, temperature, idx) \
-                    + cooling_OI(abundance_vector, temperature, idx) \
-                    + cooling_H2(abundance_vector, temperature, idx)
-
-                kboltzmann_erg = 1.380649e-16  # Boltzmann constant in erg/K
-                ntot = jnp.sum(abundance_vector)
-                a = abundance_vector[16] * 10.
-                print(abundance_vector.shape)
-                return cool / kboltzmann_erg / ntot
-
-        return CoolingRateTerm()
-
 
 #@eqx.filter_jit
 def cooling_Lyalpha(x, tgas, idx):
