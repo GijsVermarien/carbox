@@ -65,8 +65,8 @@ def save_abundances(
     -----
     Output format:
     - Columns: time, physical parameters, then species abundances
-    - Values: fractional abundances relative to H nuclei (x_i = n_i / n_{H,nuclei})
-    - n_{H,nuclei} = 2*n(H2) + n(H)
+    - Values: fractional abundances relative to total gas density,
+      x_i = n_i / n_gas (the ODE state itself)
     - Physical parameters repeated for each row (for easy filtering/grouping)
     """
     output_path = prepare_output_directory(config)
@@ -77,7 +77,6 @@ def save_abundances(
     physics = config.physics_model
     get_cond_vec = jax.vmap(physics.get_conditions)
     densities, temperatures, avs, radii = get_cond_vec(solution.ts)
-    n_h_nuclei_arr = densities  # divisor for fractional output
 
     # 1. Start with the base physics data
     data = {
@@ -91,9 +90,9 @@ def save_abundances(
         "visual_extinction": avs,
     }
 
-    # 2. Add all species to the dictionary
+    # 2. Add all species to the dictionary (already fractional; the ODE state)
     for i, name in enumerate(species_names):
-        data[name] = solution.ys[:, i] / n_h_nuclei_arr
+        data[name] = solution.ys[:, i]
 
     # 3. Create the DataFrame in one go
     df = pd.DataFrame(data)
@@ -134,12 +133,10 @@ def write_abundance_snapshot(
     """Append a single snapshot to the abundance CSV."""
     # Calculate physics for this timestamp
     n, T, av, r = config.physics_model.get_conditions(t_sec)
-    n_h_nuclei = n
 
-    # Convert to fractional abundances
-    # y is absolute density [cm^-3], output is fractional relative to H nuclei
-    frac_abundances = y / n_h_nuclei
-    
+    # y is already fractional (the ODE state)
+    frac_abundances = y
+
     # Prepare row
     row = [
         float(t_sec),

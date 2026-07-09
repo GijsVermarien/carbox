@@ -141,11 +141,11 @@ class CSEPhysics(AbstractPhysics):
 
         return n, T, av, r
 
-    def dilution(self, t_sec, y):
-        """Spherical-expansion dilution of number densities: -2 (v/r) n_i."""
-        v_cgs = self.vexp * self.KM_CM
-        r = self.r_init + v_cgs * jnp.asarray(t_sec)
-        return -2.0 * (v_cgs / r) * y
+    # No dilution override: with the fractional-abundance ODE state
+    # x_i = n_i / n(t), the spherical-expansion dilution term
+    # d(n_i)/dt|dilution = -2(v/r) n_i cancels exactly against the same term
+    # in dn/dt, leaving dx_i/dt = chem_i / n(t) with no separate dilution
+    # contribution. See AbstractPhysics.dilution (default: zero).
 
     def time_grid(self, config):
         """Log-spaced radius grid mapped back to time (avoids clustering at t=0)."""

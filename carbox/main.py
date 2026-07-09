@@ -131,10 +131,10 @@ def run_simulation(
 
         # Check elemental conservation
         elem_abundances = validate_elemental_conservation(network, y0)
-        print("Initial elemental abundances:")
+        print("Initial elemental abundances (fractional, relative to n_gas):")
         for elem, abundance in elem_abundances.items():
             if elem != "charge":
-                print(f"  {elem}: {abundance:.3e} cm^-3")
+                print(f"  {elem}: {abundance:.3e}")
         print(f"  Net charge: {elem_abundances['charge']:.3e}")
         print()
 

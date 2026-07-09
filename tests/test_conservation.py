@@ -85,14 +85,11 @@ def test_elemental_conservation_relative_to_gas_density(cse_solution):
         network.get_elemental_contents(elements=elements + ["charge"])
     )
 
-    ts = np.asarray(solution.ts)
     ys = np.asarray(solution.ys)
 
-    n_gas = np.array([float(physics.get_conditions(t)[0]) for t in ts])
-
-    # Elemental totals per snapshot, normalized by total gas density
-    totals = ys @ elemental_content.T          # [n_snapshots, n_elements+1]
-    fractional = totals / n_gas[:, None]
+    # ys is already fractional (x_i = n_i / n_gas); elemental totals per
+    # snapshot are therefore already relative to the total gas density
+    fractional = ys @ elemental_content.T      # [n_snapshots, n_elements+1]
 
     for i, elem in enumerate(elements):
         x = fractional[:, i]

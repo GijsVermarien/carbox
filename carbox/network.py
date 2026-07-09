@@ -24,13 +24,15 @@ class JNetwork(eqx.Module):
     incidence: Union[jnp.ndarray, sparse.BCOO]
     reactions: List[JReactionRateTerm]
     reactant_multipliers: jnp.array
+    molecularities: jnp.ndarray
 
-    def __init__(self, incidence, reactions, reactant_multipliers):
-        # Ensure incidence is treated as a static structure if possible, 
+    def __init__(self, incidence, reactions, reactant_multipliers, molecularities):
+        # Ensure incidence is treated as a static structure if possible,
         # but as a Module field it's fine as a jnp.array.
-        self.incidence = incidence 
-        self.reactions = reactions  
+        self.incidence = incidence
+        self.reactions = reactions
         self.reactant_multipliers = reactant_multipliers
+        self.molecularities = molecularities
         
         
 
@@ -93,25 +95,24 @@ class JNetwork(eqx.Module):
         fuv_rate: jnp.array,
         visual_extinction: jnp.array,
     ) -> jnp.array:
-        # abundances = abundances * density
-        # Calculate the reaction rates (pass abundances for self-shielding reactions)
+        # `abundances` are fractional (relative to total gas density `density`).
+        # Rate coefficients are evaluated with number densities, since
+        # self-shielding/column-density terms expect cm^-3.
+        number_densities = abundances * density
         rates = self.get_rates(
-            temperature, cr_rate, fuv_rate, visual_extinction, abundances
+            temperature, cr_rate, fuv_rate, visual_extinction, number_densities
         )
-        # jax.debug.print("Reaction 8258 rate: {rate}", rate=rates[8258])
-        # jax.debug.print("Reaction 8259 rate: {rate}", rate=rates[8259])
-        # jax.debug.print("Reaction 8260 rate: {rate}", rate=rates[8260])
-
-
-        # jax.debug.print("rates: {rates}", rates=rates)
-        # Get the matrix that encodes the reactants that need to be multiplied to get the flux
+        # Multiply by the (fractional) abundances of the reactants
         rates = self.multiply_rates_by_abundance(rates, abundances)
-        # Calculate the change in abundances
-        # TODO: check that we are not loosing too much precision with the matmul?
+
+        # Rescale to the fractional-abundance ODE: a reaction of molecularity m
+        # consumes/produces m reactant fractions per unit time at total rate
+        # k * n^(m-1) * (product of reactant fractions); m=1 (photo/CR) needs
+        # no density factor, m=2 (bimolecular) needs one power of density.
+        scaled_rates = rates * density ** (self.molecularities - 1)
+
         # Use BCCOO to avoid conversion to dense
-        return self.incidence @ rates
-        # Regular implmentation with dense matrix and highest precision
-        # return jnp.matmul(self.incidence, rates, precision=jax.lax.Precision.HIGHEST)
+        return self.incidence @ scaled_rates
 
 
 @dataclass
@@ -364,6 +365,7 @@ class Network:
             reaction_groups = {}
             non_vectorizable_reactions = []
             reordered_reactions = []
+            molecularities = []
 
             for reaction in self.reactions:
                 # Skip vectorization for special photoreactions
@@ -390,15 +392,18 @@ class Network:
                 del params["molecularity"]
                 vectorized_reaction = reaction_classes[reaction_type](**params)
                 self.jreactions.append(vectorized_reaction())
-                
-                # Track reactions in the new order for incidence matrix reconstruction
+
+                # Track reactions (and their molecularity) in the new order,
+                # matching the incidence matrix reconstruction below
                 reordered_reactions.extend(grouped_reactions)
+                molecularities.extend(int(r.molecularity) for r in grouped_reactions)
 
             # Add non-vectorizable reactions individually
             for reaction in non_vectorizable_reactions:
                 self.jreactions.append(_ScalarRateTermWrapper(reaction()))
                 reordered_reactions.append(reaction)
-            
+                molecularities.append(int(reaction.molecularity))
+
             # Rebuild incidence matrix to match the vectorized order
             # This is crucial: column j in incidence must match the j-th rate in the rate vector
             incidence = self.construct_incidence(self.species, reordered_reactions)
@@ -410,7 +415,13 @@ class Network:
         else:
             self.jreactions = [reaction() for reaction in self.reactions]
             incidence = self.incidence
+            molecularities = [int(r.molecularity) for r in self.reactions]
 
         reactant_multipliers = self.get_reactant_multipliers(incidence)
 
-        return JNetwork(incidence, self.jreactions, reactant_multipliers=reactant_multipliers)
+        return JNetwork(
+            incidence,
+            self.jreactions,
+            reactant_multipliers=reactant_multipliers,
+            molecularities=jnp.array(molecularities),
+        )
