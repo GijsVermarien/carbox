@@ -55,10 +55,11 @@ PHYSICAL_PARAMS = {
     # CSE Outflow Parameters
     "mdot": 1.0e-5,    # M_sun/yr
     "vexp": 15.0,      # km/s
-    "tstar": 2000.0,   # K (Temperature at r_init)
+    "tstar": 2000.0,   # K (stellar effective temperature, at r_star)
     "eps": 0.7,        # Temperature power law
     "r_init": 1e16,  # cm
     "r_final": 1.1e17, # cm
+    "r_star": 5.0e13,  # cm (stellar radius for temperature profile)
 
     # Solver Parameters
     "n_snapshots": 100,  # output timesteps (increased for detail)
@@ -219,6 +220,7 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
         vexp=PHYSICAL_PARAMS["vexp"],
         t_star=PHYSICAL_PARAMS["tstar"],
         r_init=PHYSICAL_PARAMS["r_init"],
+        r_star=PHYSICAL_PARAMS["r_star"],
         eps=PHYSICAL_PARAMS["eps"],
     )
 

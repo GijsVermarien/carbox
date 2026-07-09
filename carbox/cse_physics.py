@@ -12,8 +12,9 @@ class CSEPhysics(eqx.Module):
     """
     mdot: float       # Mass loss rate [M_sun/yr]
     vexp: float       # Expansion velocity [km/s]
-    t_star: float     # Temperature at r_init [K]
+    t_star: float     # Stellar effective temperature (at r_star) [K]
     r_init: float     # Initial radius [cm]
+    r_star: float     # Stellar radius, normalization of the temperature profile [cm]
     eps: float        # Temperature power law exponent
     
     # Constants
@@ -42,7 +43,7 @@ class CSEPhysics(eqx.Module):
         n = rho / (self.MU * self.MH)
         
         # Temperature profile (T ~ r^-eps)
-        T = self.t_star * (r / self.r_init)**(-self.eps)
+        T = self.t_star * (r / self.r_star)**(-self.eps)
         
         # Extinction (Av)
         # For 1/r^2 density, column density N_H ~ n * r
