@@ -118,13 +118,10 @@ def solve_network(
     - JIT compiled for performance (first call compiles)
     - Stiff solver (Kvaerno5) recommended for chemistry
     """
-    # # Get physical parameters as JAX arrays
-    # params = config.get_physical_params_jax()
-    # Use the physics model from config (assumed to be present for outflow models)
+    # Physics model is always present (SimulationConfig builds a
+    # StaticCloudPhysics from the legacy scalar fields if none is given)
     physics = config.physics_model
-    if physics is None:
-        raise ValueError("config.physics_model must be set for the solver.")
-    
+
     # Define ODE term
     def _ode_func(t, y, args):
         physics = args
@@ -134,10 +131,8 @@ def solve_network(
         # Chemical source/sink term (jnetwork captured from closure)
         dy_chem = jnetwork(t, y, T, n, config.cr_rate, config.fuv_field, av)
 
-        # Dilution term due to spherical expansion: d(n_i)/dt = -2 * (v/r) * n_i
-        v_cgs = physics.vexp * physics.KM_CM
-        dilution = -2 * (v_cgs / r) * y
-        return dy_chem + dilution
+        # Non-chemical term (e.g. expansion dilution; zero for static clouds)
+        return dy_chem + physics.dilution(t, y)
 
     ode_term = dx.ODETerm(_ode_func)
 
@@ -249,17 +244,13 @@ def create_step_solver(jnetwork: JNetwork, config: SimulationConfig):
         Function with signature step(t0, t1, y0, args) -> (y1, stats)
     """
     physics = config.physics_model
-    if physics is None:
-        raise ValueError("config.physics_model must be set for the solver.")
-    
+
     # Define ODE term (same as in solve_network)
     def _ode_func(t, y, args):
         physics = args
         n, T, av, r = physics.get_conditions(t)
-        dy_chem = jnetwork(t, y, T, config.cr_rate, config.fuv_field, av)
-        v_cgs = physics.vexp * physics.KM_CM
-        dilution = -2 * (v_cgs / r) * y
-        return dy_chem + dilution
+        dy_chem = jnetwork(t, y, T, n, config.cr_rate, config.fuv_field, av)
+        return dy_chem + physics.dilution(t, y)
 
     ode_term = dx.ODETerm(_ode_func)
     solver = get_solver(config)
@@ -318,7 +309,6 @@ def compute_derivatives(
     Useful for analyzing formation/destruction rates.
     Evaluated at actual solution points (not interpolated).
     """
-    # params = config.get_physical_params_jax()
     physics = config.physics_model
 
     def _compute_single(t, y):
@@ -327,9 +317,7 @@ def compute_derivatives(
 
         # Chemical source/sink term
         dy_chem = jnetwork(t, y, T, n, config.cr_rate, config.fuv_field, av)
-        v_cgs = physics.vexp * physics.KM_CM
-        dilution = -2 * (v_cgs / r) * y
-        return dy_chem + dilution
+        return dy_chem + physics.dilution(t, y)
 
     # Vectorize over time and state
     @eqx.filter_jit

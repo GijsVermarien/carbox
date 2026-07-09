@@ -19,6 +19,7 @@ from .config import SimulationConfig
 from .main import run_simulation
 from .network import JNetwork, Network
 from .parsers import parse_chemical_network
+from .physics import AbstractPhysics, CSEPhysics, StaticCloudPhysics
 
 __all__ = [
     "SimulationConfig",
@@ -26,4 +27,7 @@ __all__ = [
     "parse_chemical_network",
     "Network",
     "JNetwork",
+    "AbstractPhysics",
+    "StaticCloudPhysics",
+    "CSEPhysics",
 ]

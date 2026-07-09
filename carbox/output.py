@@ -73,27 +73,11 @@ def save_abundances(
 
     species_names = [s.name for s in network.species]
 
-    # Handle dynamic physics for output
-    if config.physics_model is not None:
-        physics = config.physics_model
-        # Vectorize get_conditions to run over all timesteps
-        # Returns: n, T, av, r
-        get_cond_vec = jax.vmap(physics.get_conditions)
-        n_dyn, T_dyn, av_dyn, r_dyn = get_cond_vec(solution.ts)
-        
-        # Use dynamic values
-        densities = n_dyn
-        temperatures = T_dyn
-        avs = av_dyn
-        radii = r_dyn
-        n_h_nuclei_arr = n_dyn # Divisor is dynamic density
-    else:
-        # Static values (fallback)
-        densities = config.number_density
-        temperatures = config.temperature
-        avs = config.compute_visual_extinction()
-        radii = jnp.zeros_like(solution.ts)
-        n_h_nuclei_arr = config.number_density
+    # Physical conditions along the trajectory (n, T, av, r)
+    physics = config.physics_model
+    get_cond_vec = jax.vmap(physics.get_conditions)
+    densities, temperatures, avs, radii = get_cond_vec(solution.ts)
+    n_h_nuclei_arr = densities  # divisor for fractional output
 
     # 1. Start with the base physics data
     data = {
@@ -149,15 +133,8 @@ def write_abundance_snapshot(
 ):
     """Append a single snapshot to the abundance CSV."""
     # Calculate physics for this timestamp
-    if config.physics_model is not None:
-        n, T, av, r = config.physics_model.get_conditions(t_sec)
-        n_h_nuclei = n
-    else:
-        n = config.number_density
-        T = config.temperature
-        av = config.compute_visual_extinction()
-        r = 0.0
-        n_h_nuclei = n
+    n, T, av, r = config.physics_model.get_conditions(t_sec)
+    n_h_nuclei = n
 
     # Convert to fractional abundances
     # y is absolute density [cm^-3], output is fractional relative to H nuclei
@@ -209,16 +186,9 @@ def save_derivatives(
 
     species_names = [s.name for s in network.species]
 
-    # Handle dynamic physics
-    if config.physics_model is not None:
-        physics = config.physics_model
-        get_cond_vec = jax.vmap(physics.get_conditions)
-        n_dyn, T_dyn, av_dyn, r_dyn = get_cond_vec(times)
-    else:
-        n_dyn = config.number_density
-        T_dyn = config.temperature
-        av_dyn = config.compute_visual_extinction()
-        r_dyn = jnp.zeros_like(times)
+    # Physical conditions along the trajectory
+    get_cond_vec = jax.vmap(config.physics_model.get_conditions)
+    n_dyn, T_dyn, av_dyn, r_dyn = get_cond_vec(times)
 
     # 1. Base physics data
     data = {
@@ -275,16 +245,9 @@ def save_reaction_rates(
 
     # Reaction rates are saved with numerical column names (0, 1, 2, ...)
 
-    # Handle dynamic physics
-    if config.physics_model is not None:
-        physics = config.physics_model
-        get_cond_vec = jax.vmap(physics.get_conditions)
-        n_dyn, T_dyn, av_dyn, r_dyn = get_cond_vec(times)
-    else:
-        n_dyn = config.number_density
-        T_dyn = config.temperature
-        av_dyn = config.visual_extinction
-        r_dyn = jnp.zeros_like(times)
+    # Physical conditions along the trajectory
+    get_cond_vec = jax.vmap(config.physics_model.get_conditions)
+    n_dyn, T_dyn, av_dyn, r_dyn = get_cond_vec(times)
 
     # 1. Create the base data dictionary
     data = {
@@ -349,6 +312,10 @@ def save_metadata(
     """
     output_path = prepare_output_directory(config)
 
+    # Physical conditions at the start of the integration
+    physics = config.physics_model
+    n0, T0, av0, r0 = physics.get_conditions(config.t_start * SPY)
+
     metadata = {
         "timestamp": datetime.now().isoformat(),
         "run_name": config.run_name,
@@ -356,15 +323,13 @@ def save_metadata(
         # Configuration
         "config": {
             "physical_params": {
-                "number_density": config.number_density,
-                "temperature": config.temperature,
+                "physics_model": type(physics).__name__,
+                "number_density_initial": float(n0),
+                "temperature_initial": float(T0),
+                "visual_extinction_initial": float(av0),
+                "radius_initial_cm": float(r0),
                 "cr_rate": config.cr_rate,
                 "fuv_field": config.fuv_field,
-                "visual_extinction": config.compute_visual_extinction(),
-                "visual_extinction_config": config.visual_extinction,
-                "use_self_consistent_av": config.use_self_consistent_av,
-                "cloud_radius_pc": config.cloud_radius_pc,
-                "base_av": config.base_av,
             },
             "integration": {
                 "t_start": config.t_start,
@@ -436,12 +401,14 @@ def save_summary_report(
     lines.append(f"Timestamp: {datetime.now().isoformat()}")
     lines.append("")
 
-    lines.append("Physical Parameters:")
-    lines.append(f"  Total density: {config.number_density:.2e} cm^-3")
-    lines.append(f"  Temperature: {config.temperature:.1f} K")
+    physics = config.physics_model
+    n0, T0, av0, _ = physics.get_conditions(config.t_start * SPY)
+    lines.append(f"Physical Parameters ({type(physics).__name__}, at t_start):")
+    lines.append(f"  Total density: {float(n0):.2e} cm^-3")
+    lines.append(f"  Temperature: {float(T0):.1f} K")
     lines.append(f"  CR ionization rate: {config.cr_rate:.2e} s^-1")
     lines.append(f"  FUV field: {config.fuv_field:.2e} Draine")
-    lines.append(f"  Visual extinction: {config.visual_extinction:.1f} mag")
+    lines.append(f"  Visual extinction: {float(av0):.1f} mag")
     lines.append("")
 
     lines.append("Integration:")
