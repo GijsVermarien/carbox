@@ -175,38 +175,11 @@ def get_time_grid(config: SimulationConfig) -> jnp.ndarray:
     t_start_sec = config.t_start * SPY
     t_end_sec = config.t_end * SPY
 
-    # Check if we should use radius-based spacing (for CSE models)
-    # This avoids clustering points at t=0 when using log-time spacing
-    if config.physics_model is not None:
-        pm = config.physics_model
-        if hasattr(pm, "r_init") and hasattr(pm, "vexp"):
-            r_init = pm.r_init
-            v_cgs = pm.vexp * 1.0e5  # km/s -> cm/s
-            
-            r_start = r_init + v_cgs * t_start_sec
-            
-            # Use r_final if available to define the grid end
-            if hasattr(pm, "r_final") and pm.r_final is not None:
-                r_end = pm.r_final
-                t_end_sec = (r_end - r_init) / v_cgs
-            else:
-                r_end = r_init + v_cgs * t_end_sec
-            
-            # Generate log-spaced radius grid
-            r_snapshots = jnp.logspace(
-                jnp.log10(r_start), 
-                jnp.log10(r_end), 
-                config.n_snapshots
-            )
-            
-            # Convert back to time: t = (r - r_init) / v
-            t_snapshots_sec = (r_snapshots - r_init) / v_cgs
-            
-            # Ensure boundaries are exact
-            t_snapshots_sec = t_snapshots_sec.at[0].set(t_start_sec)
-            t_snapshots_sec = t_snapshots_sec.at[-1].set(t_end_sec)
-            
-            return t_snapshots_sec
+    # A physics model may provide its own snapshot grid (e.g. CSE spaces
+    # snapshots log-uniformly in radius to avoid clustering at t=0)
+    custom_grid = config.physics_model.time_grid(config)
+    if custom_grid is not None:
+        return custom_grid
 
     # Time sampling (log-spaced in years, converted to seconds)
     if config.t_start <= 0:
