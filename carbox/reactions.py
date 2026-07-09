@@ -486,7 +486,7 @@ class CRPReaction(Reaction):
 
 class CRPhotoReaction(Reaction):
     def __init__(self, reaction_type, reactants, products, alpha, beta, gamma, reaction_id: Optional[int] = None):
-        super().__init__(reaction_type, reactants, products)
+        super().__init__(reaction_type, reactants, products, reaction_id=reaction_id)
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
@@ -504,7 +504,7 @@ class CRPhotoReaction(Reaction):
 
 class FUVReaction(Reaction):
     def __init__(self, reaction_type, reactants, products, alpha,reaction_id: Optional[int] = None):
-        super().__init__(reaction_type, reactants, products)
+        super().__init__(reaction_type, reactants, products, reaction_id=reaction_id)
         self.alpha = alpha
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
@@ -513,7 +513,7 @@ class FUVReaction(Reaction):
 
 class H2FormReaction(Reaction):
     def __init__(self, reaction_type, reactants, products, alpha, gas2dust,reaction_id: Optional[int] = None):
-        super().__init__(reaction_type, reactants, products)
+        super().__init__(reaction_type, reactants, products, reaction_id=reaction_id)
         self.alpha = alpha
         self.gas2dust = gas2dust
 
@@ -611,7 +611,7 @@ class UCLCHEMH2FormReaction(Reaction):
 
 class UCLCHEMPhotonReaction(Reaction):
     def __init__(self, reaction_type, reactants, products, alpha, beta, gamma,reaction_id: Optional[int] = None):
-        super().__init__(reaction_type, reactants, products)
+        super().__init__(reaction_type, reactants, products, reaction_id=reaction_id)
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
@@ -645,7 +645,7 @@ class IonPol1Reaction(Reaction):
     """
 
     def __init__(self, reaction_type, reactants, products, alpha, beta, gamma,reaction_id: Optional[int] = None):
-        super().__init__(reaction_type, reactants, products)
+        super().__init__(reaction_type, reactants, products, reaction_id=reaction_id)
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
@@ -662,7 +662,7 @@ class IonPol2Reaction(Reaction):
     """
 
     def __init__(self, reaction_type, reactants, products, alpha, beta, gamma,reaction_id: Optional[int] = None):
-        super().__init__(reaction_type, reactants, products)
+        super().__init__(reaction_type, reactants, products, reaction_id=reaction_id)
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
@@ -678,8 +678,8 @@ class GARReaction(Reaction):
     Simplified implementation for gas-phase comparison
     """
 
-    def __init__(self, reaction_type, reactants, products):
-        super().__init__(reaction_type, reactants, products)
+    def __init__(self, reaction_type, reactants, products, reaction_id: Optional[int] = None):
+        super().__init__(reaction_type, reactants, products, reaction_id=reaction_id)
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
         class GARRateTerm(JReactionRateTerm):
@@ -712,8 +712,9 @@ class H2PhotoDissReaction(Reaction):
         number_density=1e4,
         turb_vel=1e5,
         h2_species_index=None,
+        reaction_id: Optional[int] = None,
     ):
-        super().__init__(reaction_type, reactants, products)
+        super().__init__(reaction_type, reactants, products, reaction_id=reaction_id)
         self.cloud_radius_pc = cloud_radius_pc
         self.number_density = number_density
         self.turb_vel = turb_vel
@@ -742,8 +743,9 @@ class COPhotoDissReaction(Reaction):
         number_density=1e4,
         h2_species_index=None,
         co_species_index=None,
+        reaction_id: Optional[int] = None,
     ):
-        super().__init__(reaction_type, reactants, products)
+        super().__init__(reaction_type, reactants, products, reaction_id=reaction_id)
         self.cloud_radius_pc = cloud_radius_pc
         self.number_density = number_density
         self.h2_species_index = h2_species_index
@@ -775,8 +777,9 @@ class CIonizationReaction(Reaction):
         number_density=1e4,
         c_species_index=None,
         h2_species_index=None,
+        reaction_id: Optional[int] = None,
     ):
-        super().__init__(reaction_type, reactants, products)
+        super().__init__(reaction_type, reactants, products, reaction_id=reaction_id)
         self.alpha = alpha
         self.gamma = gamma
         self.cloud_radius_pc = cloud_radius_pc
