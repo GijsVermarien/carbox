@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 """
-Run Carbox benchmark for a specific network.
+Run a Carbox benchmark for a specific network.
 
-Simplified standalone runner with hardcoded configurations.
+Unified runner replacing the former run_carbox.py (static-cloud) and
+run_cse.py (CSE outflow) scripts. Each NETWORK_CONFIGS entry declares its
+own physics model (static cloud or CSE outflow) via the "physics" key;
+everything downstream (solver, output) is agnostic to which one it gets.
 """
 
 import argparse
 import json
 import sys
 import time
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 import jax
+import pandas as pd
 import yaml
 
 # Add Carbox to path
@@ -20,115 +24,192 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from carbox.config import SimulationConfig
 from carbox.main import run_simulation
-from carbox.cse_physics import CSEPhysics
+from carbox.physics import CSEPhysics, StaticCloudPhysics
+from carbox.solver import SPY, compute_reaction_rates, solve_network
 
-# Enable JAX 64-bit and NaN debugging
+# Enable JAX 64-bit; NaN debugging is expensive, keep off by default
 jax.config.update("jax_enable_x64", True)
-jax.config.update("jax_debug_nans", False)  # CRITICAL: Disable for performance
+jax.config.update("jax_debug_nans", False)
 
 
-# Hardcoded physical parameters (matching UCLCHEM test case)
-# PHYSICAL_PARAMS = {
-#     "number_density": 1.0e4,  # cm^-3
-#     "temperature": 250.0,  # K
-#     "cr_rate": 1.0,  # s^-1
-#     "fuv_field": 1.0,  # Habing units
-#     "visual_extinction": 2.9643750143703076,  # mag (used if not self-consistent)
-#     # Self-consistent Av calculation (optional)
-#     "use_self_consistent_av": True,  # Enable self-consistent Av
-#     "base_av": 2.0,  # Base Av before column density contribution
-#     "cloud_radius_pc": 1.0,
-#     "t_start": 0.0,  # years
-#     "t_end": 1e2,  # years
-#     "n_snapshots": 100,  # output timesteps (increased for detail)
-#     "rtol": 1.0e-5,
-#     "atol": 1.0e-25,
-#     "solver": "kvaerno5",  # lowercase required
-#     "max_steps": 65536,  # max steps, always use power of 16 (e.g., 4096, 65536)
-# }
-
-# Hardcoded physical parameters for the CSE outflow model
-PHYSICAL_PARAMS = {
-    "cr_rate": 1.0,  # s^-1
-    "fuv_field": 1.0,  # Habing units
-
-    # CSE Outflow Parameters
-    "mdot": 1.0e-5,    # M_sun/yr
-    "vexp": 15.0,      # km/s
-    "tstar": 2000.0,   # K (stellar effective temperature, at r_star)
-    "eps": 0.7,        # Temperature power law
-    "r_init": 1e16,  # cm
-    "r_final": 1.1e17, # cm
-    "r_star": 5.0e13,  # cm (stellar radius for temperature profile)
-
-    # Solver Parameters
-    "n_snapshots": 100,  # output timesteps (increased for detail)
-    "rtol": 1.0e-5,
-    "atol": 1.0e-20,
-    "solver": "kvaerno5",  # lowercase required
-    "linear_solver" : "sparse",
-    "max_steps": 65536,  # max steps, always use power of 16 (e.g., 4096, 65536)
-}
-
-# Species to track (filter output)
-OUTPUT_SPECIES = [
-    "H",
-    "H2",
-    "He",
-    "C",
-    "O",
-    "N",
-    "CO",
-    "H2O",
-    "OH",
-    "CH",
-    "NH3",
-    "HCO+",
-    "H3+",
-    "e-",
-]
-
-# Network configurations
-# Note: 'initial_conditions' is REQUIRED and must point to a valid YAML file
-# containing fractional abundances extracted from UCLCHEM
+# Network configurations. Each entry:
+#   description, input_file, input_format, initial_conditions (required
+#   YAML of fractional abundances), cr_rate, fuv_field,
+#   physics: {"type": "static"|"cse", ...physics-specific params},
+#   solver: {t_start, t_end (years; auto-derived for CSE from r_final if
+#            omitted), n_snapshots, rtol, atol, solver, linear_solver,
+#            max_steps}
 NETWORK_CONFIGS = {
     "small_chemistry": {
         "description": "Small gas-phase chemistry (~20 species)",
         "input_file": "../data/uclchem_small_chemistry.csv",
         "input_format": "uclchem",
         "initial_conditions": "initial_conditions/small_chemistry_initial.yaml",
+        "cr_rate": 1.0,
+        "fuv_field": 1.0,
+        "physics": {
+            "type": "static",
+            "number_density": 1.0e4,
+            "temperature": 250.0,
+            "use_self_consistent_av": True,
+            "base_av": 2.0,
+            "cloud_radius_pc": 1.0,
+        },
+        "solver": {
+            "t_start": 0.0,
+            "t_end": 5.0e6,
+            "n_snapshots": 100,
+            "rtol": 1.0e-9,
+            "atol": 1.0e-30,
+            "solver": "kvaerno5",
+            "max_steps": 65536,
+        },
     },
     "gas_phase_only": {
         "description": "Gas-phase only chemistry (~183 species)",
         "input_file": "../data/uclchem_gas_phase_only.csv",
         "input_format": "uclchem",
         "initial_conditions": "initial_conditions/gas_phase_only_initial.yaml",
+        "cr_rate": 1.0,
+        "fuv_field": 1.0,
+        "physics": {
+            "type": "static",
+            "number_density": 1.0e4,
+            "temperature": 250.0,
+            "use_self_consistent_av": True,
+            "base_av": 2.0,
+            "cloud_radius_pc": 1.0,
+        },
+        "solver": {
+            "t_start": 0.0,
+            "t_end": 5.0e6,
+            "n_snapshots": 100,
+            "rtol": 1.0e-9,
+            "atol": 1.0e-30,
+            "solver": "kvaerno5",
+            "max_steps": 65536,
+        },
     },
     "gas_phase_only_cse": {
-        "description": "Gas-phase only chemistry (~183 species)",
+        "description": "Gas-phase only chemistry (~183 species), CSE outflow",
         "input_file": "../data/uclchem_gas_phase_only.csv",
         "input_format": "uclchem",
         "initial_conditions": "initial_conditions/orich_cse_uclchem.yaml",
+        "cr_rate": 1.0,
+        "fuv_field": 1.0,
+        "physics": {
+            "type": "cse",
+            "mdot": 1.0e-5,
+            "vexp": 15.0,
+            "t_star": 2000.0,
+            "r_init": 1.0e16,
+            "r_final": 1.1e17,
+            "r_star": 5.0e13,
+            "eps": 0.7,
+        },
+        "solver": {
+            "n_snapshots": 100,
+            "rtol": 1.0e-5,
+            "atol": 1.0e-20,
+            "solver": "kvaerno5",
+            "linear_solver": "sparse",
+            "max_steps": 65536,
+        },
     },
     "orich_cse": {
-        "description": "UMIST Rate22 network with O-rich parent species",
+        "description": "UMIST Rate22 network with O-rich parent species, CSE outflow",
         "input_file": "../data/umist22.csv",
         "input_format": "umist",
         "initial_conditions": "initial_conditions/orich_cse_umist.yaml",
+        "cr_rate": 1.0,
+        "fuv_field": 1.0,
+        "physics": {
+            "type": "cse",
+            "mdot": 1.0e-5,
+            "vexp": 15.0,
+            "t_star": 2000.0,
+            "r_init": 1.0e16,
+            "r_final": 1.1e17,
+            "r_star": 5.0e13,
+            "eps": 0.7,
+        },
+        "solver": {
+            "n_snapshots": 100,
+            "rtol": 1.0e-5,
+            "atol": 1.0e-20,
+            "solver": "kvaerno5",
+            "linear_solver": "sparse",
+            "max_steps": 65536,
+        },
     },
     "orich_cse_mini": {
-        "description": "UMIST Rate22 network with O-rich parent species",
+        "description": "Small UMIST subset with O-rich parent species, CSE outflow",
         "input_file": "../data/umist22_mini.csv",
         "input_format": "umist",
         "initial_conditions": "initial_conditions/orich_cse_umist.yaml",
-    }
-
+        "cr_rate": 1.0,
+        "fuv_field": 1.0,
+        "physics": {
+            "type": "cse",
+            "mdot": 1.0e-5,
+            "vexp": 15.0,
+            "t_star": 2000.0,
+            "r_init": 1.0e16,
+            "r_final": 1.1e17,
+            "r_star": 5.0e13,
+            "eps": 0.7,
+        },
+        "solver": {
+            "n_snapshots": 100,
+            "rtol": 1.0e-5,
+            "atol": 1.0e-20,
+            "solver": "kvaerno5",
+            "linear_solver": "sparse",
+            "max_steps": 65536,
+        },
+    },
 }
+
+
+def build_physics(physics_spec: dict):
+    """Construct the physics model for a NETWORK_CONFIGS "physics" entry."""
+    physics_type = physics_spec["type"]
+    # "type" selects the class below; "r_final" (CSE) is a driver-level
+    # parameter used only to derive t_end, not a CSEPhysics field
+    params = {k: v for k, v in physics_spec.items() if k not in ("type", "r_final")}
+
+    if physics_type == "static":
+        return StaticCloudPhysics(**params)
+    elif physics_type == "cse":
+        return CSEPhysics(**params)
+    else:
+        raise ValueError(f"Unknown physics type: {physics_type}")
+
+
+def resolve_time_range(physics_spec: dict, solver_spec: dict) -> tuple:
+    """Determine (t_start_years, t_end_years) for the integration.
+
+    For CSE outflows, t_end is derived from r_final unless explicitly
+    overridden in the solver spec.
+    """
+    t_start = solver_spec.get("t_start", 0.0)
+    if "t_end" in solver_spec:
+        return t_start, solver_spec["t_end"]
+
+    if physics_spec["type"] == "cse" and "r_final" in physics_spec:
+        v_cgs = physics_spec["vexp"] * 1.0e5
+        t_end_sec = (physics_spec["r_final"] - physics_spec["r_init"]) / v_cgs
+        return t_start, t_end_sec / SPY
+
+    raise ValueError(
+        "solver.t_end must be given explicitly unless physics is a CSE "
+        "model with r_final set"
+    )
 
 
 def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: int = 1):
     """
-    Run Carbox for specified network.
+    Run Carbox for the specified network configuration.
 
     Parameters
     ----------
@@ -150,35 +231,22 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
         )
 
     config_info = NETWORK_CONFIGS[network_name]
+    physics_spec = config_info["physics"]
+    solver_spec = config_info["solver"]
 
     print(f"\n{'=' * 70}")
     print(f"Running Carbox: {network_name}")
     print(f"{'=' * 70}")
     print(f"Description: {config_info['description']}")
-    print("\nPhysical conditions:")
-    print(f"  CR rate: {PHYSICAL_PARAMS['cr_rate']:.2e} s^-1")
-    print(f"  FUV rate: {PHYSICAL_PARAMS['fuv_field']:.2e} s^-1")
-    print(f"  Start radius: {PHYSICAL_PARAMS['r_init']:.2e} cm")
-    print(f"  Final radius: {PHYSICAL_PARAMS['r_final']:.2e} cm")
-
-    print("\nCSE Outflow Parameters:")
-    print(f"  Mass-loss rate (mdot): {PHYSICAL_PARAMS['mdot']:.2e} M_sun/yr")
-    print(f"  Expansion velocity (vexp): {PHYSICAL_PARAMS['vexp']:.1f} km/s")
-    print(f"  Initial radius (r_init): {PHYSICAL_PARAMS['r_init']:.2e} cm")
-    print(f"  Final radius (r_final): {PHYSICAL_PARAMS['r_final']:.2e} cm")
-    print(f"  Initial temperature (tstar): {PHYSICAL_PARAMS['tstar']:.1f} K")
-    print(f"  Temperature exponent (eps): {PHYSICAL_PARAMS['eps']:.2f}")
-
+    print(f"Physics model: {physics_spec['type']}")
     print("\nNetwork:")
     print(f"  File: {config_info['input_file']}")
     print(f"  Format: {config_info['input_format']}")
-
     print("\nSolver settings:")
-    print(f"  Solver: {PHYSICAL_PARAMS['solver']}")
-    print(f"  rtol: {PHYSICAL_PARAMS['rtol']:.2e}")
-    print(f"  atol: {PHYSICAL_PARAMS['atol']:.2e}")
-    print(f"  max_steps: {PHYSICAL_PARAMS['max_steps']}")
-
+    print(f"  Solver: {solver_spec['solver']}")
+    print(f"  rtol: {solver_spec['rtol']:.2e}")
+    print(f"  atol: {solver_spec['atol']:.2e}")
+    print(f"  max_steps: {solver_spec['max_steps']}")
     print("\nStarting integration...")
     print(f"Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
@@ -195,7 +263,6 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
         )
 
     ic_file = Path(__file__).parent / ic_path_str
-
     if not ic_file.exists():
         raise FileNotFoundError(
             f"\nInitial conditions file not found: {ic_file}\n"
@@ -205,90 +272,64 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
             f"  python extract_uclchem_initial.py --network {network_name}\n"
         )
 
-    # Load initial abundances (fractional)
     with open(ic_file, "r") as f:
-        yaml_data = yaml.safe_load(f)
-        initial_abundances = yaml_data["abundances"]
+        initial_abundances = yaml.safe_load(f)["abundances"]
 
     print(f"\n✓ Loaded initial conditions from: {ic_file.name}")
     print(f"  Species: {len(initial_abundances)}")
-    print("  Source: UCLCHEM extraction (fractional abundances)")
 
-    # Initialize CSE Physics to get initial conditions and time range
-    physics = CSEPhysics(
-        mdot=PHYSICAL_PARAMS["mdot"],
-        vexp=PHYSICAL_PARAMS["vexp"],
-        t_star=PHYSICAL_PARAMS["tstar"],
-        r_init=PHYSICAL_PARAMS["r_init"],
-        r_star=PHYSICAL_PARAMS["r_star"],
-        eps=PHYSICAL_PARAMS["eps"],
-    )
-
-    # Calculate time range from radii
-    SPY = 3600.0 * 24 * 365.0
-    v_cgs = PHYSICAL_PARAMS["vexp"] * 1.0e5
-    t_start_sec = 0.0
-    t_end_sec = (PHYSICAL_PARAMS["r_final"] - PHYSICAL_PARAMS["r_init"]) / v_cgs
-    t_start_yr = t_start_sec / SPY
-    t_end_yr = t_end_sec / SPY
+    # Build the physics model and derive the integration time range from it
+    physics = build_physics(physics_spec)
+    t_start_yr, t_end_yr = resolve_time_range(physics_spec, solver_spec)
     print(f"  Time range: {t_start_yr:.2e} to {t_end_yr:.2e} years")
 
-    # Get initial number density from the physics model at t=0
-    initial_n, _, _, _ = physics.get_conditions(t_sec=t_start_sec)
-    print(f"\n✓ Initial density at r_init: {initial_n:.2e} cm^-3")
+    initial_n, initial_T, _, _ = physics.get_conditions(t_sec=t_start_yr * SPY)
+    print(f"\n✓ Initial conditions: n={float(initial_n):.2e} cm^-3, T={float(initial_T):.1f} K")
 
-    # Build SimulationConfig
+    # Build SimulationConfig; physics_model takes precedence over the
+    # legacy scalar fields, so number_density/temperature below are only
+    # used if physics_model were absent (kept for config introspection).
     config = SimulationConfig(
-        # Use initial conditions from physics model
-        number_density=float(initial_n),
-        temperature=PHYSICAL_PARAMS["tstar"],
-        cr_rate=PHYSICAL_PARAMS["cr_rate"],
-        fuv_field=PHYSICAL_PARAMS["fuv_field"],
-        # Time settings
+        cr_rate=config_info["cr_rate"],
+        fuv_field=config_info["fuv_field"],
         t_start=t_start_yr,
         t_end=t_end_yr,
-        n_snapshots=PHYSICAL_PARAMS["n_snapshots"],
-        # Solver settings
-        rtol=PHYSICAL_PARAMS["rtol"],
-        atol=PHYSICAL_PARAMS["atol"],
-        solver=PHYSICAL_PARAMS["solver"],
-        linear_solver=PHYSICAL_PARAMS["linear_solver"],
-        max_steps=PHYSICAL_PARAMS["max_steps"],
+        n_snapshots=solver_spec["n_snapshots"],
+        rtol=solver_spec["rtol"],
+        atol=solver_spec["atol"],
+        solver=solver_spec["solver"],
+        linear_solver=solver_spec.get("linear_solver", "lu"),
+        max_steps=solver_spec["max_steps"],
         output_dir=str(output_path),
         run_name=network_name,
         save_abundances=True,
         initial_abundances=initial_abundances,
+        physics_model=physics,
     )
 
-    # Attach the fully configured physics model to the config object
-    config.physics_model = physics
     # Resolve input file path
     input_file = Path(__file__).parent / config_info["input_file"]
     if not input_file.exists():
         raise FileNotFoundError(f"Network file not found: {input_file}")
 
-    # Measure compilation time on first run
     compile_start = time.perf_counter()
 
     try:
-        # Run Carbox simulation (first run includes compilation)
         results = run_simulation(
             network_file=str(input_file),
             config=config,
             format_type=config_info["input_format"],
-            verbose=(n_runs == 1),  # Only verbose on single run
+            verbose=(n_runs == 1),
         )
 
         compile_time = time.perf_counter() - compile_start
 
-        # Extract info from results
         network = results["network"]
         solution = results["solution"]
         jnetwork = results["jnetwork"]
         n_species = len(network.species)
         n_reactions = len(network.reactions)
 
-        # Get solver statistics from solution
         n_ode_steps = solution.stats["num_steps"]
         n_accepted = solution.stats["num_accepted_steps"]
         n_rejected = solution.stats["num_rejected_steps"]
@@ -301,7 +342,6 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
             print(f"  Accepted: {n_accepted}")
             print(f"  Rejected: {n_rejected}")
 
-            # For single run, we can't separate compilation from runtime
             first_run_time = compile_time
             actual_compile_time = None
             mean_runtime = compile_time
@@ -310,44 +350,31 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
             max_runtime = compile_time
             run_times = []
         else:
-            # Store t0 (first run with compilation)
             first_run_time = compile_time
 
             print(f"\n✓ First run (compile + runtime): {first_run_time:.2f}s")
             print(f"  Species: {n_species}")
             print(f"  Reactions: {n_reactions}")
-
-            # Run additional times to measure pure runtime
             print(f"\nRunning {n_runs - 1} additional iterations...")
             run_times = []
 
             for run_idx in range(n_runs - 1):
                 print(f"  Run {run_idx + 2}/{n_runs}...", end=" ", flush=True)
-
                 run_start = time.perf_counter()
 
-                # Re-run solver with already compiled network
-                from carbox.solver import solve_network
-
-                # Get initial abundances
                 y0 = results["solution"].ys[0]
-
-                # Run solver (already compiled, so this measures pure runtime)
                 _ = solve_network(jnetwork, y0, config)
 
                 run_time = time.perf_counter() - run_start
                 run_times.append(run_time)
                 print(f"{run_time:.3f}s")
 
-            # Calculate statistics
             import numpy as np
 
             mean_runtime = np.mean(run_times)
             std_runtime = np.std(run_times)
             min_runtime = min(run_times)
             max_runtime = max(run_times)
-
-            # Calculate compilation time: t0 - avg(t1...tn)
             actual_compile_time = first_run_time - mean_runtime
 
             print("\n✓ All runs complete")
@@ -360,35 +387,25 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
 
         # Compute reaction rates at solution snapshots
         print("\nComputing reaction rates...")
-        from carbox.solver import SPY, compute_reaction_rates
-
-        jnetwork = results["jnetwork"]
         rates = compute_reaction_rates(jnetwork, solution, config)
-
-        # Save rates to CSV
-        import pandas as pd
 
         reaction_ids = [reaction.reaction_id for reaction in network.reactions]
         rates_df = pd.DataFrame(rates, columns=reaction_ids)
-        # Add time column (convert from seconds to years)
         rates_df.insert(0, "time", solution.ts / SPY)
 
         rates_file = output_path / f"{network_name}_rates.csv"
         rates_df.to_csv(rates_file, index=False)
 
         # Save reaction metadata (types and strings) to YAML
-        reaction_metadata = []
-        for i, reaction in enumerate(network.reactions):
-            reactants_str = " + ".join(reaction.reactants)
-            products_str = " + ".join(reaction.products)
-            reaction_metadata.append(
-                {
-                    "index": i,
-                    "reaction": f"{reactants_str} -> {products_str}",
-                    "type": reaction.reaction_type,
-                }
-            )
-
+        reaction_metadata = [
+            {
+                "index": i,
+                "reaction_id": reaction.reaction_id,
+                "reaction": f"{' + '.join(reaction.reactants)} -> {' + '.join(reaction.products)}",
+                "type": reaction.reaction_type,
+            }
+            for i, reaction in enumerate(network.reactions)
+        ]
         reactions_yaml_file = output_path / f"{network_name}_reactions.yaml"
         with open(reactions_yaml_file, "w") as f:
             yaml.dump(reaction_metadata, f, default_flow_style=False)
@@ -396,54 +413,31 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
         # Load abundance output to get timesteps
         abund_file = output_path / f"{network_name}_abundances.csv"
         df = pd.read_csv(abund_file)
-
-        # Save benchmark metadata (convert all to native Python types for JSON)
         final_time = float(df["time_years"].iloc[-1]) if len(df) > 0 else 0
 
-        # Prepare timing results
-        if n_runs == 1:
-            benchmark_results = {
-                "network": network_name,
-                "success": True,
-                "time": first_run_time,
-                "first_run_time": first_run_time,
-                "compile_time": None,  # Can't separate with single run
-                "mean_runtime": mean_runtime,
-                "n_runs": 1,
-                "n_timesteps": len(df),
-                "n_species": int(n_species),
-                "n_reactions": int(n_reactions),
-                "n_ode_steps": int(n_ode_steps),
-                "n_accepted": int(n_accepted),
-                "n_rejected": int(n_rejected),
-                "final_time": final_time,
-                "output_file": str(abund_file),
-                "physical_params": PHYSICAL_PARAMS,
-            }
-        else:
-            benchmark_results = {
-                "network": network_name,
-                "success": True,
-                "time": first_run_time,
-                "first_run_time": first_run_time,
-                "compile_time": actual_compile_time,
-                "n_runs": n_runs,
-                "run_times": run_times,
-                "mean_runtime": mean_runtime,
-                "std_runtime": std_runtime,
-                "min_runtime": min_runtime,
-                "max_runtime": max_runtime,
-                "total_time": first_run_time + sum(run_times),
-                "n_timesteps": len(df),
-                "n_species": int(n_species),
-                "n_reactions": int(n_reactions),
-                "n_ode_steps": int(n_ode_steps),
-                "n_accepted": int(n_accepted),
-                "n_rejected": int(n_rejected),
-                "final_time": final_time,
-                "output_file": str(abund_file),
-                "physical_params": PHYSICAL_PARAMS,
-            }
+        benchmark_results = {
+            "network": network_name,
+            "success": True,
+            "time": first_run_time,
+            "first_run_time": first_run_time,
+            "compile_time": actual_compile_time,
+            "mean_runtime": mean_runtime,
+            "n_runs": n_runs,
+            "run_times": run_times,
+            "std_runtime": std_runtime,
+            "min_runtime": min_runtime,
+            "max_runtime": max_runtime,
+            "n_timesteps": len(df),
+            "n_species": int(n_species),
+            "n_reactions": int(n_reactions),
+            "n_ode_steps": int(n_ode_steps),
+            "n_accepted": int(n_accepted),
+            "n_rejected": int(n_rejected),
+            "final_time": final_time,
+            "output_file": str(abund_file),
+            "physics": physics_spec,
+            "solver": solver_spec,
+        }
 
         benchmark_file = output_path / f"{network_name}_benchmark.json"
         with open(benchmark_file, "w") as f:
@@ -477,16 +471,14 @@ def run_carbox(network_name: str, output_dir: str = "results/carbox", n_runs: in
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run Carbox benchmark",
+        description="Run a Carbox benchmark (static-cloud or CSE outflow)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=f"""
-Available networks:
-  small_chemistry - {NETWORK_CONFIGS["small_chemistry"]["description"]}
-  gas_phase_only  - {NETWORK_CONFIGS["gas_phase_only"]["description"]}
-
-Example:
-  python run_carbox.py --network small_chemistry
-        """,
+        epilog="Available networks:\n"
+        + "\n".join(
+            f"  {name:<20} - {cfg['description']}"
+            for name, cfg in NETWORK_CONFIGS.items()
+        )
+        + "\n\nExample:\n  python run.py --network gas_phase_only_cse",
     )
 
     parser.add_argument(
@@ -505,10 +497,8 @@ Example:
 
     args = parser.parse_args()
 
-    # Run benchmark
     results = run_carbox(args.network, args.output, args.n_runs)
 
-    # Print summary
     print(f"\n{'=' * 70}")
     if results["success"]:
         print(f"✓ Carbox benchmark complete: {results['time']:.2f}s")

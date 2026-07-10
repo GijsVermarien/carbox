@@ -19,8 +19,7 @@ import sys
 
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from carbox import SimulationConfig, run_simulation
-from carbox.cse_physics import CSEPhysics
+from carbox import CSEPhysics, SimulationConfig, run_simulation
 
 SPY = 3600.0 * 24 * 365.0
 

@@ -33,7 +33,7 @@ Physical conditions matching UCLCHEM validation case:
 benchmarks/
 ├── run_benchmarks.sh           # Main benchmark orchestrator
 ├── run_uclchem.py             # UCLCHEM runner
-├── run_carbox.py              # Carbox runner
+├── run.py                     # Carbox runner (static-cloud and CSE outflow)
 ├── compare_results.py         # Comparison & visualization
 ├── extract_uclchem_initial.py # Extract initial conditions
 ├── configs/
@@ -239,7 +239,7 @@ This extracts ALL gas-phase species from UCLCHEM's first timestep and saves to:
 
 ### 2. Carbox Auto-Loads Initial Conditions
 
-The `run_carbox.py` script automatically loads the YAML file if it exists:
+The `run.py` script automatically loads the YAML file if it exists:
 ```python
 # Automatically loaded from initial_conditions/{network}_initial.yaml
 initial_abundances = {...}  # H: 0.5, H2: 0.25, etc.
