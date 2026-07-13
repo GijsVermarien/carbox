@@ -330,7 +330,6 @@ class PHReactionRateTerm(JReactionRateTerm):
         abundance_vector,
     ):
         rate = self.alpha * uv_field * jnp.exp(-self.gamma * visual_extinction)
-        # jax.debug.print("PHReactionRateTerm: alpha={alpha}, uv_field={uv_field}, visual_extinction={visual_extinction}, gamma={gamma}, rate={rate}", alpha=self.alpha, uv_field=uv_field, visual_extinction=visual_extinction, gamma=self.gamma, rate=rate)
         return rate
 
 class IonPol1RateTerm(JReactionRateTerm):

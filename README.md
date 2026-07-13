@@ -54,6 +54,49 @@ network = results["network"]
 The same high-level API is used internally by the benchmarking suite under
 `benchmarks/`.
 
+### Physics models
+
+The physical conditions a network is evolved under (density, temperature,
+visual extinction, and any non-chemical source term such as expansion
+dilution) come from a `physics_model` on `SimulationConfig`. If none is
+given, one is built automatically from the legacy scalar fields
+(`number_density`, `temperature`, `visual_extinction`,
+`use_self_consistent_av`, `base_av`, `cloud_radius_pc`), matching the
+example above.
+
+Two models are provided out of the box:
+
+- `StaticCloudPhysics`: constant density and temperature (the original
+  Carbox use case).
+- `CSEPhysics`: a circumstellar-envelope outflow at constant expansion
+  velocity, with density following mass conservation (`n ~ r^-2`) and
+  temperature a power law normalized at the stellar radius.
+
+```python
+from carbox import CSEPhysics, SimulationConfig, run_simulation
+
+physics = CSEPhysics(
+    mdot=1e-5,      # M_sun/yr
+    vexp=15.0,      # km/s
+    t_star=2000.0,  # K, at r_star
+    r_init=1e16,    # cm
+    r_star=5e13,    # cm
+    eps=0.7,
+)
+config = SimulationConfig(t_end=..., physics_model=physics, ...)
+```
+
+The ODE state is always the fractional abundance `x_i = n_i / n(t)`
+relative to the total gas density the physics model prescribes — this is
+what makes tolerances meaningful across a CSE outflow, where `n` can drop
+two orders of magnitude, and lets the same solver code serve both static
+and dynamic-density models without special-casing.
+
+To add a new physics model (e.g. a collapsing core), subclass
+`carbox.physics.AbstractPhysics` and implement `get_conditions(t_sec) ->
+(n, T, av, r)`; override `dilution`/`time_grid` only if the model needs a
+non-chemical ODE source term or a custom snapshot grid.
+
 ## Command line usage
 
 The package also provides a small CLI wrapper around the same functionality:

@@ -51,40 +51,6 @@ def get_solver(config: SimulationConfig):
     
     raise ValueError(f"Unknown solver: {s_name}")
 
-    
-# def get_solver(solver_name: str):
-#     """Get Diffrax solver instance from name.
-
-#     Parameters
-#     ----------
-#     solver_name : str
-#         Solver identifier: 'dopri5', 'kvaerno5', 'tsit5'
-
-#     Returns
-#     -------
-#     solver : diffrax.AbstractSolver
-#         Configured solver instance
-
-#     Notes
-#     -----
-#     - dopri5: Explicit RK method, good for non-stiff
-#     - kvaerno5: SDIRK method, good for stiff chemistry (recommended)
-#     - tsit5: Explicit RK method, efficient for moderate stiffness
-#     """
-#     if solver_name.lower() == "kvaerno5":
-#         return dx.Kvaerno5()
-#     solvers = {
-#         "dopri5": dx.Dopri5,
-#         "tsit5": dx.Tsit5,
-#     }
-
-#     if solver_name.lower() not in solvers:
-#         raise ValueError(
-#             f"Unknown solver: {solver_name}. Available: {list(solvers.keys())}"
-#         )
-
-#     return solvers[solver_name.lower()]()
-
 
 def solve_network(
     jnetwork: JNetwork,
@@ -205,54 +171,6 @@ def get_time_grid(config: SimulationConfig) -> jnp.ndarray:
     # Ensure last point is exactly at t_end (avoid floating point error)
     t_snapshots_sec = t_snapshots_sec.at[-1].set(t_end_sec)
     return t_snapshots_sec
-
-
-def create_step_solver(jnetwork: JNetwork, config: SimulationConfig):
-    """
-    Create a JIT-compiled function to solve a single step (interval).
-    
-    Returns
-    -------
-    step_fn : function
-        Function with signature step(t0, t1, y0, args) -> (y1, stats)
-    """
-    physics = config.physics_model
-
-    # Define ODE term (same as in solve_network)
-    def _ode_func(t, y, args):
-        physics = args
-        n, T, av, r = physics.get_conditions(t)
-        dy_chem = jnetwork(t, y, T, n, config.cr_rate, config.fuv_field, av)
-        return dy_chem + physics.dilution(t, y)
-
-    ode_term = dx.ODETerm(_ode_func)
-    solver = get_solver(config)
-
-    @eqx.filter_jit
-    def step(t0, t1, y0, args, solver_state, controller_state):
-        # We only want the state at t1
-        saveat = dx.SaveAt(t1=True)
-        sol = dx.diffeqsolve(
-            ode_term,
-            solver,
-            t0=t0,
-            t1=t1,
-            dt0=1e-4,  # Explicit small initial step
-            y0=y0,
-            stepsize_controller=dx.PIDController(
-                atol=config.atol,
-                rtol=config.rtol,
-            ),
-            saveat=saveat,
-            args=args,
-            max_steps=config.max_steps,
-            solver_state=solver_state,
-            controller_state=controller_state,
-            made_jump=False,
-        )
-        return sol
-
-    return step
 
 
 def compute_derivatives(

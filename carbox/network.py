@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from functools import partial
 from typing import List, Union
-from typing import List, Union
 
 import equinox as eqx
 import jax
@@ -33,36 +32,10 @@ class JNetwork(eqx.Module):
         self.reactions = reactions
         self.reactant_multipliers = reactant_multipliers
         self.molecularities = molecularities
-        
-        
-
-    # @jax.jit
-    # def get_rates(self, temperature, cr_rate, fuv_rate, visual_extinction, abundances):
-    #     """
-    #     Get the reaction rates for the given temperature, cosmic ray ionisation rate,
-    #     FUV radiation field, and abundance vector.
-    #     """
-    #     # TODO: optimization: The most Jax way to do optimize would be to create one class with all the reactions of one type and all their constants.
-    #     # rates = jnp.empty(len(self.reactions))
-    #     # for i, reaction in enumerate(self.reactions):
-    #     #     rates = rates.at[i].set(reaction(temperature, cr_rate, fuv_rate))
-    #     # return rates
-    #     return jnp.hstack(
-    #         [
-    #             reaction(temperature, cr_rate, fuv_rate, visual_extinction, abundances)
-    #             for reaction in self.reactions
-    #         ]
-    #     )
 
     def get_rates(self, temperature, cr_rate, fuv_rate, visual_extinction, abundances):
         # List comprehension is okay for JIT, but it unrolls the loop.
         # For 'large' networks, this can make the graph massive.
-        
-        # for i, reaction in enumerate(self.reactions):
-        #     rates = rates.at[i].set(reaction(temperature, cr_rate, fuv_rate))
-        #     if i == 8259:
-        #         jax.debug.print("Reaction 8259 rate: {rate}", rate=rates[i])
-        
         return jnp.hstack([
             r(temperature, cr_rate, fuv_rate, visual_extinction, abundances)
             for r in self.reactions
