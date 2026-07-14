@@ -9,6 +9,15 @@ from ..species import Species
 from .base_parser import BaseParser
 
 
+# UMIST reaction-rate accuracy classes (McElroy et al. 2013, Table 3):
+# A = uncertain to 25%, B = 50%, C = a factor of 2, D = an order of
+# magnitude, E = worse than an order of magnitude / unknown. Expressed here
+# as a multiplicative factor F such that the tabulated rate is believed to
+# lie within roughly [k/F, k*F] (A/B use 1+fraction rather than a true
+# ratio, matching the convention the fractions were given in).
+DEFAULT_UNCERTAINTY_FACTORS = {"A": 1.25, "B": 1.50, "C": 2.0, "D": 10.0, "E": 10.0}
+
+
 class UMISTParser(BaseParser):
     """
     Parser for UMIST reaction format - adapted from existing parser_umist.py
@@ -17,9 +26,13 @@ class UMISTParser(BaseParser):
     with the unified parser architecture.
     """
 
-    def __init__(self):
+    def __init__(self, uncertainty_factors: Optional[Dict[str, float]] = None):
         super().__init__()
         self.format_type = "umist"
+        # Customizable mapping from the UMIST accuracy letter (A-E) to a
+        # numeric multiplicative uncertainty factor. Override to use a
+        # different convention without touching this file.
+        self.uncertainty_factors = uncertainty_factors or DEFAULT_UNCERTAINTY_FACTORS
 
         # UMIST reaction type mapping
         self.reaction_type_mapping = {
@@ -52,7 +65,14 @@ class UMISTParser(BaseParser):
 
         # Convert to list format for compatibility with existing code
         reactions_data = df.values.tolist()
-        # Convert to DataFrame for easier processing
+        # Convert to DataFrame for easier processing.
+        # Note: columns 15/16 are named for what they actually contain, not
+        # the generic names an earlier version of this parser used --
+        # verified against data/umist22.csv: column 15 ("measurement_type")
+        # holds letters {L, M, C, E} (literature/measured/calculated/
+        # estimated); column 16 ("accuracy_flag", directly before the DOI)
+        # holds the real {A, B, C, D, E} accuracy classes from McElroy et
+        # al. (2013), Table 3 -- see DEFAULT_UNCERTAINTY_FACTORS above.
         columns = [
             "reaction_number",
             "reaction_type",
@@ -68,8 +88,8 @@ class UMISTParser(BaseParser):
             "gamma",
             "tlow",
             "thigh",
-            "uncertainty_flag",
-            "source",
+            "measurement_type",
+            "accuracy_flag",
             "reference_1",
             "reference_2",
             "notes",
@@ -128,13 +148,23 @@ class UMISTParser(BaseParser):
 
             # Map to appropriate reaction class
             if reaction_type in ["CP", "CR"]:
-                return CRPReaction(reaction_type, reactants, products, alpha, reaction_id=reaction_id)
+                reaction = CRPReaction(reaction_type, reactants, products, alpha, reaction_id=reaction_id)
             elif reaction_type in ["PH", "PD"]:
-                return UMISTPhotoReaction(reaction_type, reactants, products, alpha, beta, gamma, reaction_id=reaction_id)
+                reaction = UMISTPhotoReaction(reaction_type, reactants, products, alpha, beta, gamma, reaction_id=reaction_id)
             else:
-                return KAReaction(
+                reaction = KAReaction(
                     reaction_type, reactants, products, alpha, beta, gamma, reaction_id=reaction_id
                 )
+
+            # Attach the accuracy classification as metadata (not a
+            # constructor arg -- see network.get_ode(), which strips these
+            # before rebuilding vectorized reaction groups). Defaults to a
+            # multiplicative factor of 1.0 (no info) for missing/unknown flags.
+            accuracy_flag = row.get("accuracy_flag")
+            reaction.uncertainty_flag = accuracy_flag
+            reaction.uncertainty_factor = self.uncertainty_factors.get(accuracy_flag, 1.0)
+
+            return reaction
 
         except Exception as e:
             print(f"Warning: Failed to parse UMIST reaction: {e}")

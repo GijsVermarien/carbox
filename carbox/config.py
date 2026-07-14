@@ -57,6 +57,10 @@ class SimulationConfig:
             Relative tolerance
         max_steps : int
             Maximum integration steps
+        show_progress : bool
+            Print progress to the terminal as the solve runs -- the current
+            radius [cm] for a physics_model with meaningful position (e.g.
+            CSEPhysics), otherwise raw percent-of-solve-time
 
     Output Settings:
         output_dir : str
@@ -103,6 +107,7 @@ class SimulationConfig:
     atol: float = 1e-18
     rtol: float = 1e-12
     max_steps: int = 4096
+    show_progress: bool = False  # print radius (or raw % for non-CSE physics) as the solve runs
 
     # Output settings
     output_dir: str = "output"

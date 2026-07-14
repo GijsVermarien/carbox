@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Union, Optional
 
 import jax
@@ -78,6 +78,7 @@ class KAReactionRateTerm(JReactionRateTerm):
     alpha: jnp.ndarray
     beta: jnp.ndarray
     gamma: jnp.ndarray
+    scale: jnp.ndarray = field(default_factory=lambda: jnp.array(1.0))
 
     def __call__(
         self,
@@ -89,13 +90,15 @@ class KAReactionRateTerm(JReactionRateTerm):
     ):
         # α(T/300K​)^βexp(−γ/T)
         return (
-            self.alpha
+            self.scale
+            * self.alpha
             * jnp.power(0.0033333333333333335 * temperature, self.beta)
             * jnp.exp(-self.gamma / temperature)
         )
 
 class KAFixedReactionRateTerm(JReactionRateTerm):
     reaction_coeff: jnp.ndarray
+    scale: jnp.ndarray = field(default_factory=lambda: jnp.array(1.0))
 
     def __call__(
         self,
@@ -105,10 +108,11 @@ class KAFixedReactionRateTerm(JReactionRateTerm):
         visual_extinction,
         abundance_vector,
     ):
-        return self.reaction_coeff
+        return self.scale * self.reaction_coeff
 
 class CRPReactionRateTerm(JReactionRateTerm):
     alpha: jnp.ndarray
+    scale: jnp.ndarray = field(default_factory=lambda: jnp.array(1.0))
 
     def __call__(
         self,
@@ -118,12 +122,13 @@ class CRPReactionRateTerm(JReactionRateTerm):
         visual_extinction,
         abundance_vector,
     ):
-        return cr_rate * self.alpha
+        return self.scale * cr_rate * self.alpha
 
 class CRPhotoReactionRateTerm(JReactionRateTerm):
     alpha: jnp.ndarray
     beta: jnp.ndarray
     gamma: jnp.ndarray
+    scale: jnp.ndarray = field(default_factory=lambda: jnp.array(1.0))
 
     def __call__(
         self,
@@ -135,7 +140,8 @@ class CRPhotoReactionRateTerm(JReactionRateTerm):
     ):
         return (
             # 1.31e-17
-            self.alpha
+            self.scale
+            * self.alpha
             * cr_rate
             * jnp.power(0.0033333333333333335 * temperature, self.beta)
             * self.gamma
@@ -144,6 +150,7 @@ class CRPhotoReactionRateTerm(JReactionRateTerm):
 
 class FUVReactionRateTerm(JReactionRateTerm):
     alpha: jnp.ndarray
+    scale: jnp.ndarray = field(default_factory=lambda: jnp.array(1.0))
 
     def __call__(
         self,
@@ -153,11 +160,12 @@ class FUVReactionRateTerm(JReactionRateTerm):
         visual_extinction,
         abundance_vector,
     ):
-        return self.alpha * uv_field
+        return self.scale * self.alpha * uv_field
 
 class H2ReactionRateTerm(JReactionRateTerm):
     alpha: jnp.ndarray
     gas2dust: jnp.ndarray
+    scale: jnp.ndarray = field(default_factory=lambda: jnp.array(1.0))
 
     def __call__(
         self,
@@ -167,7 +175,7 @@ class H2ReactionRateTerm(JReactionRateTerm):
         visual_extinction,
         abundance_vector,
     ):
-        return 100.0 * self.gas2dust * self.alpha
+        return self.scale * 100.0 * self.gas2dust * self.alpha
 
 class UCLCHEMH2FormRateTerm(JReactionRateTerm):
     # Silicate parameters
@@ -192,6 +200,7 @@ class UCLCHEMH2FormRateTerm(JReactionRateTerm):
 
     hflux: jnp.ndarray
     alpha: jnp.ndarray
+    scale: jnp.ndarray = field(default_factory=lambda: jnp.array(1.0))
 
     def __call__(
         self,
@@ -294,12 +303,13 @@ class UCLCHEMH2FormRateTerm(JReactionRateTerm):
             * sticking_coeff
         )
 
-        return rate * self.alpha
+        return self.scale * rate * self.alpha
 
 class UCLCHEMPhotonRateTerm(JReactionRateTerm):
     alpha: jnp.ndarray
     beta: jnp.ndarray
     gamma: jnp.ndarray
+    scale: jnp.ndarray = field(default_factory=lambda: jnp.array(1.0))
 
     def __call__(
         self,
@@ -310,7 +320,8 @@ class UCLCHEMPhotonRateTerm(JReactionRateTerm):
         abundance_vector,
     ):
         return (
-            self.alpha
+            self.scale
+            * self.alpha
             * jnp.exp(-self.gamma * visual_extinction)
             * uv_field
             / 1.7
@@ -320,6 +331,7 @@ class PHReactionRateTerm(JReactionRateTerm):
     alpha: jnp.ndarray
     beta: jnp.ndarray
     gamma: jnp.ndarray
+    scale: jnp.ndarray = field(default_factory=lambda: jnp.array(1.0))
 
     def __call__(
         self,
@@ -329,13 +341,14 @@ class PHReactionRateTerm(JReactionRateTerm):
         visual_extinction,
         abundance_vector,
     ):
-        rate = self.alpha * uv_field * jnp.exp(-self.gamma * visual_extinction)
+        rate = self.scale * self.alpha * uv_field * jnp.exp(-self.gamma * visual_extinction)
         return rate
 
 class IonPol1RateTerm(JReactionRateTerm):
     alpha: jnp.ndarray
     beta: jnp.ndarray
     gamma: jnp.ndarray
+    scale: jnp.ndarray = field(default_factory=lambda: jnp.array(1.0))
 
     def __call__(
         self,
@@ -346,7 +359,8 @@ class IonPol1RateTerm(JReactionRateTerm):
         abundance_vector,
     ):
         return (
-            self.alpha
+            self.scale
+            * self.alpha
             * self.beta
             * (0.62 + 0.4767 * self.gamma * jnp.sqrt(300.0 / temperature))
         )
@@ -355,6 +369,7 @@ class IonPol2RateTerm(JReactionRateTerm):
     alpha: jnp.ndarray
     beta: jnp.ndarray
     gamma: jnp.ndarray
+    scale: jnp.ndarray = field(default_factory=lambda: jnp.array(1.0))
 
     def __call__(
         self,
@@ -366,12 +381,13 @@ class IonPol2RateTerm(JReactionRateTerm):
     ):
         sqrt_term = 0.0967 * self.gamma * jnp.sqrt(300.0 / temperature)
         quadratic_term = self.gamma**2 * 300.0 / (10.526 * temperature)
-        return self.alpha * self.beta * (1.0 + sqrt_term + quadratic_term)
+        return self.scale * self.alpha * self.beta * (1.0 + sqrt_term + quadratic_term)
 
 class H2PhotoDissRateTerm(JReactionRateTerm):
     cloud_radius_pc: jnp.ndarray
     turb_vel: jnp.ndarray
     h2_species_index: int
+    scale: jnp.ndarray = field(default_factory=lambda: jnp.array(1.0))
 
     def __call__(
         self,
@@ -386,12 +402,13 @@ class H2PhotoDissRateTerm(JReactionRateTerm):
         rate = uclchem_photoreactions.h2_photo_diss_rate(
             n_h2_column, uv_field, visual_extinction, self.turb_vel
         )
-        return rate
+        return self.scale * rate
 
 class COPhotoDissRateTerm(JReactionRateTerm):
     cloud_radius_pc: jnp.ndarray
     h2_species_index: int
     co_species_index: int
+    scale: jnp.ndarray = field(default_factory=lambda: jnp.array(1.0))
 
     def __call__(
         self,
@@ -407,7 +424,7 @@ class COPhotoDissRateTerm(JReactionRateTerm):
         n_h2_column = uclchem_photoreactions.compute_column_density(n_h2, self.cloud_radius_pc)
         n_co_column = uclchem_photoreactions.compute_column_density(n_co, self.cloud_radius_pc)
 
-        return uclchem_photoreactions.co_photo_diss_rate(
+        return self.scale * uclchem_photoreactions.co_photo_diss_rate(
             n_h2_column, n_co_column, uv_field, visual_extinction
         )
 
@@ -417,6 +434,7 @@ class CIonizationRateTerm(JReactionRateTerm):
     cloud_radius_pc: jnp.ndarray
     c_species_index: int
     h2_species_index: int
+    scale: jnp.ndarray = field(default_factory=lambda: jnp.array(1.0))
 
     def __call__(
         self,
@@ -432,7 +450,7 @@ class CIonizationRateTerm(JReactionRateTerm):
         n_c_column = uclchem_photoreactions.compute_column_density(n_c, self.cloud_radius_pc)
         n_h2_column = uclchem_photoreactions.compute_column_density(n_h2, self.cloud_radius_pc)
 
-        return uclchem_photoreactions.c_ionization_rate(
+        return self.scale * uclchem_photoreactions.c_ionization_rate(
             self.alpha,
             self.gamma,
             temperature,
@@ -454,8 +472,10 @@ class KAReaction(Reaction):
         self.gamma = gamma
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
+        alpha = jnp.array(self.alpha)
         return KAReactionRateTerm(
-            jnp.array(self.alpha), jnp.array(self.beta), jnp.array(self.gamma)
+            alpha, jnp.array(self.beta), jnp.array(self.gamma),
+            scale=jnp.ones_like(alpha),
         )
 
 
@@ -471,7 +491,8 @@ class KAFixedReaction(Reaction):
         )
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
-        return KAFixedReactionRateTerm(jnp.array(self.reaction_coeff))
+        reaction_coeff = jnp.array(self.reaction_coeff)
+        return KAFixedReactionRateTerm(reaction_coeff, scale=jnp.ones_like(reaction_coeff))
 
 
 class CRPReaction(Reaction):
@@ -480,7 +501,8 @@ class CRPReaction(Reaction):
         self.alpha = alpha
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
-        return CRPReactionRateTerm(jnp.array(self.alpha))
+        alpha = jnp.array(self.alpha)
+        return CRPReactionRateTerm(alpha, scale=jnp.ones_like(alpha))
 
 
 class CRPhotoReaction(Reaction):
@@ -491,10 +513,12 @@ class CRPhotoReaction(Reaction):
         self.gamma = gamma
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
+        alpha = jnp.array(self.alpha)
         return CRPhotoReactionRateTerm(
-            jnp.array(self.alpha),
+            alpha,
             jnp.array(self.beta),
             jnp.array(self.gamma),
+            scale=jnp.ones_like(alpha),
         )
 
 
@@ -507,7 +531,8 @@ class FUVReaction(Reaction):
         self.alpha = alpha
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
-        return FUVReactionRateTerm(jnp.array(self.alpha))
+        alpha = jnp.array(self.alpha)
+        return FUVReactionRateTerm(alpha, scale=jnp.ones_like(alpha))
 
 
 class H2FormReaction(Reaction):
@@ -517,7 +542,8 @@ class H2FormReaction(Reaction):
         self.gas2dust = gas2dust
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
-        return H2ReactionRateTerm(jnp.array(self.alpha), jnp.array(self.gas2dust))
+        alpha = jnp.array(self.alpha)
+        return H2ReactionRateTerm(alpha, jnp.array(self.gas2dust), scale=jnp.ones_like(alpha))
 
 
 # UCLCHEM reactions:
@@ -605,6 +631,7 @@ class UCLCHEMH2FormReaction(Reaction):
             graphite_cross_section=jnp.array(self.graphite_cross_section),
             hflux=jnp.array(self.hflux),
             alpha=jnp.array(self.alpha),
+            scale=jnp.ones_like(jnp.array(self.alpha)),
         )
 
 
@@ -616,8 +643,10 @@ class UCLCHEMPhotonReaction(Reaction):
         self.gamma = gamma
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
+        alpha = jnp.array(self.alpha)
         return UCLCHEMPhotonRateTerm(
-            jnp.array(self.alpha), jnp.array(self.beta), jnp.array(self.gamma)
+            alpha, jnp.array(self.beta), jnp.array(self.gamma),
+            scale=jnp.ones_like(alpha),
         )
 
 
@@ -632,8 +661,10 @@ class UMISTPhotoReaction(Reaction):
         self.gamma = gamma
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
+        alpha = jnp.array(self.alpha)
         return PHReactionRateTerm(
-            jnp.array(self.alpha), jnp.array(self.beta), jnp.array(self.gamma)
+            alpha, jnp.array(self.beta), jnp.array(self.gamma),
+            scale=jnp.ones_like(alpha),
         )
 
 
@@ -650,8 +681,10 @@ class IonPol1Reaction(Reaction):
         self.gamma = gamma
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
+        alpha = jnp.array(self.alpha)
         return IonPol1RateTerm(
-            jnp.array(self.alpha), jnp.array(self.beta), jnp.array(self.gamma)
+            alpha, jnp.array(self.beta), jnp.array(self.gamma),
+            scale=jnp.ones_like(alpha),
         )
 
 
@@ -667,8 +700,10 @@ class IonPol2Reaction(Reaction):
         self.gamma = gamma
 
     def _reaction_rate_factory(self) -> JReactionRateTerm:
+        alpha = jnp.array(self.alpha)
         return IonPol2RateTerm(
-            jnp.array(self.alpha), jnp.array(self.beta), jnp.array(self.gamma)
+            alpha, jnp.array(self.beta), jnp.array(self.gamma),
+            scale=jnp.ones_like(alpha),
         )
 
 

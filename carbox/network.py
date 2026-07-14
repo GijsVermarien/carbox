@@ -361,8 +361,14 @@ class Network:
                     key: [getattr(reaction, key) for reaction in grouped_reactions]
                     for key in vars(grouped_reactions[0])
                 }
-                # The molecularity is infered from the number of reactants
-                del params["molecularity"]
+                # Strip attributes that live on Reaction instances but aren't
+                # constructor args of the Reaction subclass: molecularity is
+                # inferred from the number of reactants, and
+                # uncertainty_flag/uncertainty_factor (set post-construction
+                # by parsers that have accuracy metadata, e.g. UMISTParser)
+                # are informational only.
+                for non_constructor_key in ("molecularity", "uncertainty_flag", "uncertainty_factor"):
+                    params.pop(non_constructor_key, None)
                 vectorized_reaction = reaction_classes[reaction_type](**params)
                 self.jreactions.append(vectorized_reaction())
 

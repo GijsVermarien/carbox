@@ -21,6 +21,37 @@ import optimistix as optx
 # Seconds per year
 SPY = 3600.0 * 24 * 365.0
 
+
+class RadiusProgressMeter(dx.AbstractProgressMeter):
+    """Prints the current radius [cm] as a solve progresses, instead of
+    diffrax's default raw time-fraction percentage.
+
+    Radius is assumed linear in time between (t0, r_init) and (t1, r_final)
+    -- exact for CSEPhysics (constant-velocity expansion), since diffrax
+    only ever reports fractional progress through [t0, t1], not the
+    physical quantities the ODE itself tracks.
+    """
+
+    r_init: jax.Array
+    r_final: jax.Array
+    minimum_increase: float = 0.01  # only print every >=1% of progress
+
+    def init(self):
+        jax.debug.print("r = {r:.3e} cm (0.00%)", r=self.r_init)
+        return jnp.array(0.0)
+
+    def step(self, state, progress):
+        def _do_print(_):
+            r = self.r_init + progress * (self.r_final - self.r_init)
+            jax.debug.print("r = {r:.3e} cm ({pct:.2f}%)", r=r, pct=100.0 * progress)
+            return progress
+
+        should_print = (progress - state >= self.minimum_increase) | (progress >= 1.0)
+        return jax.lax.cond(should_print, _do_print, lambda _: state, operand=None)
+
+    def close(self, state):
+        pass
+
 def get_solver(config: SimulationConfig):
     # Standardize names
     s_name = getattr(config, "solver", "kvaerno5").lower()
@@ -110,6 +141,19 @@ def solve_network(
     # Get solver
     solver = get_solver(config)
 
+    # Progress meter: print the actual radius as the solve runs (for physics
+    # models with a meaningful position, e.g. CSEPhysics); falls back to
+    # diffrax's default raw percentage if radius doesn't change (e.g. a
+    # static cloud). Decided once here, outside the jitted solve.
+    progress_meter = dx.NoProgressMeter()
+    if getattr(config, "show_progress", False):
+        r_init = physics.get_conditions(t_start_sec)[3]
+        r_final = physics.get_conditions(t_end_sec)[3]
+        if float(r_init) != float(r_final):
+            progress_meter = RadiusProgressMeter(r_init=r_init, r_final=r_final)
+        else:
+            progress_meter = dx.TextProgressMeter()
+
     # Solve (JIT compiled for performance)
     @eqx.filter_jit
     def _solve(t0, t1, y0, args, saveat_ts):
@@ -128,8 +172,9 @@ def solve_network(
             saveat=dx.SaveAt(ts=saveat_ts),
             args=args,
             max_steps=config.max_steps,
+            progress_meter=progress_meter,
         )
-    
+
     solution = _solve(t_start_sec, t_end_sec, y0, physics, t_snapshots_sec)
 
     return solution
