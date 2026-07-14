@@ -141,7 +141,15 @@ class UMISTParser(BaseParser):
             return None
 
     def _parse_species_list(self, species_str: str) -> List[str]:
-        """Parse UMIST species list (space or + separated)"""
+        """Parse a single UMIST reactant/product field.
+
+        Each reactant/product already occupies its own column in the UMIST
+        rate file, so a field holds exactly one species name. It must NOT be
+        split on "+", since "+" is part of many species' names (e.g. "CO+",
+        "H2+", "HCO+") rather than a separator between multiple species --
+        stripping it silently turns every cation into its neutral
+        counterpart and merges the two species' abundances.
+        """
         if isinstance(species_str, str) and (
             not species_str or species_str.strip() == ""
         ):
@@ -149,14 +157,8 @@ class UMISTParser(BaseParser):
         elif isinstance(species_str, float) and np.isnan(species_str):
             return []
 
-        # Handle both space and + separators
-        species = species_str.replace("+", " ").split()
+        sp = species_str.strip()
+        if not sp or sp == "hv":  # Remove photon notation
+            return []
 
-        # Clean species names
-        cleaned_species = []
-        for sp in species:
-            sp = sp.strip()
-            if sp and sp != "hv":  # Remove photon notation
-                cleaned_species.append(sp)
-
-        return cleaned_species
+        return [sp]
