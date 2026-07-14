@@ -1,0 +1,43 @@
+# Example grid input file for run_grid.py.
+#
+# Usage:
+#   python run_grid.py --input-file example_grid.in --output results/my_grid
+#
+# Syntax (see run_grid.py's module docstring for the full explanation):
+#   name = value        -> fixed for every run
+#   name = v1:v2:v3     -> "zip" sweep: this parameter's i-th value is used
+#                          together with every other ":" parameter's i-th
+#                          value, in run i. All ":" parameters in the file
+#                          must list the same number of values.
+#   name = v1;v2;v3     -> "cartesian" sweep: every value of this parameter
+#                          is combined with every value of every other ";"
+#                          parameter (and with the single ":" group, if
+#                          there is one).
+# Blank lines and lines starting with # are ignored. Any run_cse.py
+# parameter can be swept this way, including `network` itself.
+
+network = umist_mini
+
+# --- Cartesian sweep: every mdot combined with every vexp -> 3x3 = 9 runs ---
+mdot = 5e-6;1e-5;2e-5
+vexp = 10;15;20
+
+# --- Zip sweep (uncomment to pair specific envelope stages instead of a
+# full cartesian mdot/vexp grid -- must have matching lengths):
+# r_init = 1e14:1e15:1e16
+# r_final = 1e16:1e17:1e18
+
+# Fixed for every run: standard O-rich AGB wind (matches run_cse.py's
+# DEFAULT_PHYSICS), only mdot/vexp above are actually varied.
+t_star = 2000.0
+r_init = 1e14
+r_final = 1.1e18
+r_star = 5e13
+eps = 0.7
+
+cr_rate = 1.0
+fuv_field = 1.0
+
+n_snapshots = 100
+rtol = 1e-5
+atol = 1e-20
