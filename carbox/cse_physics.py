@@ -42,7 +42,7 @@ class CSEPhysics(eqx.Module):
         n = rho / (self.MU * self.MH)
         
         # Temperature profile (T ~ r^-eps)
-        T = self.t_star * (r / self.r_init)**(-self.eps)
+        T = self.t_star * (r / self.r_star)**(-self.eps)
         
         # Extinction (Av)
         # For 1/r^2 density, column density N_H ~ n * r

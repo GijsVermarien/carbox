@@ -59,6 +59,7 @@ PHYSICAL_PARAMS = {
     "eps": 0.7,        # Temperature power law
     "r_init": 1e16,  # cm
     "r_final": 1.1e17, # cm
+    "r_star": 5.0e13,  # cm (stellar radius for temperature profile)
 
     # Solver Parameters
     "n_snapshots": 100,  # output timesteps (increased for detail)
