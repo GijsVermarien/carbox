@@ -1,3 +1,40 @@
+Metadata-Version: 2.4
+Name: carbox
+Version: 0.2.0
+Summary: Carbox: JAX-accelerated astrochemical kinetic reaction network simulator.
+Author: Carbox developers
+License-Expression: GPL-3.0-or-later
+Project-URL: Homepage, https://github.com/gijsvermarien/carbox
+Project-URL: Repository, https://github.com/gijsvermarien/carbox
+Keywords: astrochemistry,chemical kinetics,jax,diffrax,differentiable programming
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Operating System :: OS Independent
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Scientific/Engineering :: Physics
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE.md
+Requires-Dist: jax>=0.4.20
+Requires-Dist: jaxlib>=0.4.20
+Requires-Dist: equinox>=0.11.0
+Requires-Dist: diffrax>=0.4.0
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: scipy>=1.10.0
+Requires-Dist: pandas>=2.0.0
+Requires-Dist: matplotlib>=3.7.0
+Requires-Dist: tqdm>=4.65.0
+Requires-Dist: pyyaml>=6.0
+Provides-Extra: benchmarks
+Requires-Dist: meson; extra == "benchmarks"
+Requires-Dist: ninja; extra == "benchmarks"
+Requires-Dist: uclchem; extra == "benchmarks" and extra == "benchmarks"
+Provides-Extra: dev
+Requires-Dist: pytest>=7.4; extra == "dev"
+Requires-Dist: pre-commit>=3.6; extra == "dev"
+Requires-Dist: ruff>=0.6.4; extra == "dev"
+Dynamic: license-file
+
 # Carbox
 
 Carbox is a simulation framework for simulating astrochemical kinetic reaction systems, built on top of **JAX**, **Diffrax**, and **Equinox**.
@@ -53,49 +90,6 @@ network = results["network"]
 
 The same high-level API is used internally by the benchmarking suite under
 `benchmarks/`.
-
-### Physics models
-
-The physical conditions a network is evolved under (density, temperature,
-visual extinction, and any non-chemical source term such as expansion
-dilution) come from a `physics_model` on `SimulationConfig`. If none is
-given, one is built automatically from the legacy scalar fields
-(`number_density`, `temperature`, `visual_extinction`,
-`use_self_consistent_av`, `base_av`, `cloud_radius_pc`), matching the
-example above.
-
-Two models are provided out of the box:
-
-- `StaticCloudPhysics`: constant density and temperature (the original
-  Carbox use case).
-- `CSEPhysics`: a circumstellar-envelope outflow at constant expansion
-  velocity, with density following mass conservation (`n ~ r^-2`) and
-  temperature a power law normalized at the stellar radius.
-
-```python
-from carbox import CSEPhysics, SimulationConfig, run_simulation
-
-physics = CSEPhysics(
-    mdot=1e-5,      # M_sun/yr
-    vexp=15.0,      # km/s
-    t_star=2000.0,  # K, at r_star
-    r_init=1e16,    # cm
-    r_star=5e13,    # cm
-    eps=0.7,
-)
-config = SimulationConfig(t_end=..., physics_model=physics, ...)
-```
-
-The ODE state is always the fractional abundance `x_i = n_i / n(t)`
-relative to the total gas density the physics model prescribes — this is
-what makes tolerances meaningful across a CSE outflow, where `n` can drop
-two orders of magnitude, and lets the same solver code serve both static
-and dynamic-density models without special-casing.
-
-To add a new physics model (e.g. a collapsing core), subclass
-`carbox.physics.AbstractPhysics` and implement `get_conditions(t_sec) ->
-(n, T, av, r)`; override `dilution`/`time_grid` only if the model needs a
-non-chemical ODE source term or a custom snapshot grid.
 
 ## Command line usage
 

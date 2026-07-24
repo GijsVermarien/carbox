@@ -16,8 +16,6 @@ def initialize_abundances(network: Network, config: SimulationConfig, verbose: b
     """
     Initialize abundance vector from configuration.
 
-    Converts fractional abundances (from config/YAML) to absolute abundances.
-
     Sets up y0 with:
     - Floor abundance for all species
     - Specified initial abundances from config
@@ -35,28 +33,23 @@ def initialize_abundances(network: Network, config: SimulationConfig, verbose: b
     Returns
     -------
     y0 : jnp.ndarray
-        Initial abundance vector [# species]
-        Values in absolute abundance [cm^-3]: n_i = x_i * number_density
+        Initial fractional abundance vector [# species], x_i = n_i / n_gas.
+        The ODE state is fractional throughout; JNetwork rescales rates by
+        the total gas density n(t) supplied by the physics model.
 
     Notes
     -----
-    Abundance Convention:
-    - **Input (config.initial_abundances)**: Fractional abundances x_i
-      (e.g., from UCLCHEM: x_i = n_i / n_H_nuclei)
-    - **Output (y0)**: Absolute abundances n_i [cm^-3]
-      Conversion: n_i = x_i * number_density
-
-    - All species start at abundance_floor * number_density
-    - Specified species are set to their fractional values * number_density
+    - All species start at abundance_floor
+    - Specified species are set to their fractional value from config
     - Missing species in config are kept at floor
     - Extra species in config trigger warning but don't fail
     """
     n_species = len(network.species)
 
-    # Initialize all to floor (absolute abundance)
-    y0 = jnp.ones(n_species) * config.abundance_floor * config.number_density
+    # Initialize all to floor (fractional)
+    y0 = jnp.ones(n_species) * config.abundance_floor
 
-    # Set specified abundances (convert fractional → absolute)
+    # Set specified fractional abundances
     species_names = [s.name for s in network.species]
     for species_name, fractional_abundance in config.initial_abundances.items():
         if verbose:
@@ -65,9 +58,7 @@ def initialize_abundances(network: Network, config: SimulationConfig, verbose: b
             )
         if species_name in species_names:
             idx = species_names.index(species_name)
-            # Convert fractional abundance to absolute abundance
-            absolute_abundance = fractional_abundance * config.number_density
-            y0 = y0.at[idx].set(absolute_abundance)
+            y0 = y0.at[idx].set(fractional_abundance)
         else:
             print(f"Warning: Species '{species_name}' in config not found in network")
 
@@ -92,7 +83,7 @@ def validate_elemental_conservation(
     Returns
     -------
     elemental_abundances : Dict[str, float]
-        Total abundance per element [cm^-3]
+        Total fractional abundance per element (relative to total gas density)
 
     Notes
     -----
@@ -133,14 +124,14 @@ def abundance_summary(network: Network, y0: jnp.ndarray, top_n: int = 10) -> str
     sorted_indices = jnp.argsort(y0)[::-1]
 
     lines = ["Initial Abundances Summary", "=" * 40]
-    lines.append(f"{'Species':<10} {'Abundance [cm^-3]':>18} {'Fractional':>12}")
+    lines.append(f"{'Species':<10} {'Fractional (x_i)':>18} {'Share of total':>14}")
     lines.append("-" * 40)
 
     for i in range(min(top_n, len(y0))):
         idx = sorted_indices[i]
         name = species_names[idx]
         abundance = y0[idx]
-        fractional = abundance / jnp.sum(y0)
-        lines.append(f"{name:<10} {abundance:>18.3e} {fractional:>12.3e}")
+        share = abundance / jnp.sum(y0)
+        lines.append(f"{name:<10} {abundance:>18.3e} {share:>14.3e}")
 
     return "\n".join(lines)

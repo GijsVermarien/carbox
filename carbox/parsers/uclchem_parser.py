@@ -86,8 +86,8 @@ class UCLCHEMParser(BaseParser):
         reactions = []
         species_set = set()
 
-        for _, row in df_gas.iterrows():
-            reaction = self.parse_reaction(row)
+        for row_index, row in df_gas.iterrows():
+            reaction = self.parse_reaction(row, reaction_id=int(row_index))
 
             if reaction is not None:
                 reactions.append(reaction)
@@ -135,8 +135,18 @@ class UCLCHEMParser(BaseParser):
         # Create network with vectorization enabled
         return Network(species, reactions, use_sparse=False, vectorize_reactions=True)
 
-    def parse_reaction(self, row) -> Optional[KAReaction]:
-        """Parse a single UCLCHEM reaction row"""
+    def parse_reaction(
+        self, row, reaction_id: Optional[int] = None
+    ) -> Optional[KAReaction]:
+        """Parse a single UCLCHEM reaction row.
+
+        Parameters
+        ----------
+        reaction_id : int, optional
+            Stable identifier for this reaction (its row index in the
+            source CSV), used to label rate-output columns consistently
+            across parsers and independent of any later reordering.
+        """
         # Skip surface reactions
         if not self._is_gas_phase_reaction(row):
             return None
@@ -181,6 +191,7 @@ class UCLCHEMParser(BaseParser):
                     cloud_radius_pc=self.cloud_radius_pc,
                     number_density=self.number_density,
                     h2_species_index=None,
+                    reaction_id=reaction_id,
                 )
             # Pattern: CO + PHOTON -> O + C (note: order in file is O, C not C, O)
             elif reactants == ["CO"] and set(products) == {"C", "O"}:
@@ -193,6 +204,7 @@ class UCLCHEMParser(BaseParser):
                     number_density=self.number_density,
                     h2_species_index=None,
                     co_species_index=None,
+                    reaction_id=reaction_id,
                 )
             # Pattern: C + PHOTON -> C+ + E-
             elif reactants == ["C"] and set(products) == {"C+", "E-"}:
@@ -207,28 +219,39 @@ class UCLCHEMParser(BaseParser):
                     number_density=self.number_density,
                     c_species_index=None,
                     h2_species_index=None,
+                    reaction_id=reaction_id,
                 )
             else:
                 # Default photon reaction
                 return UCLCHEMPhotonReaction(
-                    reaction_type, reactants, products, alpha, beta, gamma
+                    reaction_type, reactants, products, alpha, beta, gamma,
+                    reaction_id=reaction_id,
                 )
         # Create appropriate reaction based on type
         elif reaction_class == CRPReaction:
-            return CRPReaction(reaction_type, reactants, products, alpha)
+            return CRPReaction(
+                reaction_type, reactants, products, alpha, reaction_id=reaction_id
+            )
         elif reaction_class == CRPhotoReaction:
             return CRPhotoReaction(
-                reaction_type, reactants, products, alpha, beta, gamma
+                reaction_type, reactants, products, alpha, beta, gamma,
+                reaction_id=reaction_id,
             )
         elif reaction_class == UCLCHEMH2FormReaction:
             # H2 formation uses physics-based rate, ignore alpha/beta/gamma
-            return UCLCHEMH2FormReaction(reaction_type, reactants, products)
+            return UCLCHEMH2FormReaction(
+                reaction_type, reactants, products, reaction_id=reaction_id
+            )
         elif reaction_class in [IonPol1Reaction, IonPol2Reaction, GARReaction]:
             return reaction_class(
-                reaction_type, reactants, products, alpha, beta, gamma
+                reaction_type, reactants, products, alpha, beta, gamma,
+                reaction_id=reaction_id,
             )
         elif reaction_class == KAReaction:  # Default to KAReaction (Arrhenius)
-            return KAReaction(reaction_type, reactants, products, alpha, beta, gamma)
+            return KAReaction(
+                reaction_type, reactants, products, alpha, beta, gamma,
+                reaction_id=reaction_id,
+            )
         else:
             raise ValueError(f"Unhandled reaction class: {reaction_class}")
 

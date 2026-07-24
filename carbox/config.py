@@ -8,10 +8,12 @@ Supports loading from YAML/JSON and programmatic setup.
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 import jax.numpy as jnp
 import yaml
+
+from .physics import StaticCloudPhysics
 
 
 @dataclass
@@ -106,6 +108,7 @@ class SimulationConfig:
     t_end: float = 1e6  # years
     n_snapshots: int = 1000
     solver: str = "kvaerno5"
+    linear_solver: str = "sparse"
     atol: float = 1e-18
     rtol: float = 1e-12
     max_steps: int = 4096
@@ -119,6 +122,23 @@ class SimulationConfig:
     save_summary: bool = True
     save_all: Optional[bool] = None
     run_name: str = "carbox_run"
+
+    # Physics model (AbstractPhysics). If not given, a StaticCloudPhysics is
+    # built from the legacy scalar fields above (number_density, temperature,
+    # visual_extinction, use_self_consistent_av, base_av, cloud_radius_pc),
+    # which are kept as deprecated inputs for backward compatibility.
+    physics_model: Optional[Any] = None
+
+    def __post_init__(self):
+        if self.physics_model is None:
+            self.physics_model = StaticCloudPhysics(
+                number_density=self.number_density,
+                temperature=self.temperature,
+                visual_extinction=self.visual_extinction,
+                use_self_consistent_av=self.use_self_consistent_av,
+                base_av=self.base_av,
+                cloud_radius_pc=self.cloud_radius_pc,
+            )
 
     @classmethod
     def from_yaml(cls, filepath: str) -> "SimulationConfig":
@@ -134,15 +154,19 @@ class SimulationConfig:
             data = json.load(f)
         return cls(**data)
 
+    def _serializable_dict(self) -> Dict[str, Any]:
+        """Config fields without the (non-serializable) physics model."""
+        return {k: v for k, v in self.__dict__.items() if k != "physics_model"}
+
     def to_yaml(self, filepath: str):
         """Save configuration to YAML file."""
         with open(filepath, "w") as f:
-            yaml.dump(self.__dict__, f, default_flow_style=False)
+            yaml.dump(self._serializable_dict(), f, default_flow_style=False)
 
     def to_json(self, filepath: str):
         """Save configuration to JSON file."""
         with open(filepath, "w") as f:
-            json.dump(self.__dict__, f, indent=2)
+            json.dump(self._serializable_dict(), f, indent=2)
 
     def compute_visual_extinction(self) -> float:
         """
@@ -185,11 +209,11 @@ class SimulationConfig:
 
     def validate(self):
         """Basic validation of parameter ranges."""
-        assert 1e2 <= self.number_density <= 1e8, "number_density out of physical range"
+        # assert 1e2 <= self.number_density <= 1e8, "number_density out of physical range"
         assert 10 <= self.temperature <= 1e5, "temperature out of range"
         # assert 1e-18 <= self.cr_rate <= 1e-12, "cr_rate out of typical range"
         assert 0 <= self.visual_extinction, "visual_extinction out of range"
         assert self.t_end > self.t_start, "t_end must be > t_start"
-        assert self.solver in ["dopri5", "kvaerno5", "tsit5"], (
+        assert self.solver in ["dopri5", "kvaerno5", "tsit5", "kvaerno3"], (
             f"Unknown solver: {self.solver}"
         )

@@ -28,10 +28,12 @@ from typing import Optional
 
 import jax
 import jax.numpy as jnp
+import diffrax as dx
+from tqdm import tqdm
 
 # JAX configuration for numerical stability
 jax.config.update("jax_enable_x64", True)
-jax.config.update("jax_debug_nans", True)
+# jax.config.update("jax_debug_nans", True)  # CRITICAL: Disable for performance
 
 from .config import SimulationConfig
 from .initial_conditions import (
@@ -127,10 +129,10 @@ def run_simulation(
 
         # Check elemental conservation
         elem_abundances = validate_elemental_conservation(network, y0)
-        print("Initial elemental abundances:")
+        print("Initial elemental abundances (fractional, relative to n_gas):")
         for elem, abundance in elem_abundances.items():
             if elem != "charge":
-                print(f"  {elem}: {abundance:.3e} cm^-3")
+                print(f"  {elem}: {abundance:.3e}")
         print(f"  Net charge: {elem_abundances['charge']:.3e}")
         print()
 
@@ -147,7 +149,7 @@ def run_simulation(
         print(f"Solving ODE system with {config.solver}...")
         print(f"  Time range: {config.t_start:.2e} - {config.t_end:.2e} years")
         print(f"  Snapshots: {config.n_snapshots}")
-        print("  Compiling solver (first call)...")
+        print("  Compiling and solving (first call triggers JIT)...")
 
     solve_start = datetime.now()
     solution = solve_network(jnetwork, y0, config)
@@ -155,13 +157,6 @@ def run_simulation(
 
     if verbose:
         print(f"  Integration complete in {solve_time:.2f} seconds")
-        if hasattr(solution, "stats"):
-            print(
-                f"  Steps: {solution.stats['num_steps']} "
-                + f"(accepted: {solution.stats['num_accepted_steps']}, "
-                + f"rejected: {solution.stats['num_rejected_steps']})"
-            )
-        print()
 
     # Step 5: Save results
     if verbose:
@@ -174,9 +169,10 @@ def run_simulation(
         config.save_abundances = config.save_derivatives = config.save_rates = \
             config.save_metadata = config.save_summary = config.save_all
 
-    # Always save abundances
+    # Optional: abundances
     if config.save_abundances:
         save_abundances(solution, network, config)
+
 
     # Optional: derivatives
     if config.save_derivatives:
@@ -252,6 +248,11 @@ def solve(network_bundle, config, rate_modifiers=None):
         - 'jnetwork': Compiled JAX ODE system
     config : SimulationConfig
         Simulation configuration
+    rate_modifiers : tuple of (rate_modifier_a, rate_modifier_b), optional
+        Per-reaction rate scaling/override (a*rate + b). If given, is baked
+        into `network_bundle["jnetwork"]` in place, so a later call to
+        `compute_derivatives`/`compute_reaction_rates` with the same bundle
+        stays consistent with what was actually integrated.
 
     Returns
     -------
@@ -261,9 +262,12 @@ def solve(network_bundle, config, rate_modifiers=None):
 
     jnetwork = network_bundle["jnetwork"]
     network = network_bundle["network"]
+    if rate_modifiers is not None:
+        rate_modifier_a, rate_modifier_b = rate_modifiers
+        jnetwork = jnetwork.with_rate_modifiers(rate_modifier_a, rate_modifier_b)
+        network_bundle["jnetwork"] = jnetwork
     y0 = initialize_abundances(network, config, verbose=False)
-    solution = solve_network(jnetwork, y0, config,
-                             rate_modifiers=rate_modifiers)
+    solution = solve_network(jnetwork, y0, config)
 
     return solution
 

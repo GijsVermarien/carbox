@@ -204,9 +204,9 @@ for network in "${NETWORKS[@]}"; do
         
         cd "$SCRIPT_DIR"
         if [ "$TIME_BENCHMARK" = true ]; then
-            python run_carbox.py --network "$network" --n-runs "$N_RUNS"
+            python run.py --network "$network" --n-runs "$N_RUNS"
         else
-            python run_carbox.py --network "$network"
+            python run.py --network "$network"
         fi
         
         if [ $? -eq 0 ]; then
