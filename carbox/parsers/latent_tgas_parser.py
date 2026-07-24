@@ -5,6 +5,7 @@ import pandas as pd
 from ..network import Network
 from ..reactions import CRPReaction, FUVReaction, KAReaction
 from ..species import Species
+from ..thermo import ThermoRate
 from .base_parser import BaseParser
 
 
@@ -34,12 +35,13 @@ class LatentTGASParser(BaseParser):
 
     def parse_network(self, filepath: str) -> Network:
         """Parse latent_tgas reactions file and return Network"""
-        # Read CSV file
-        df = pd.read_csv(filepath)
+        # Read CSV file ('#'-prefixed lines are comments, not data)
+        df = pd.read_csv(filepath, comment="#")
 
         # Parse reactions
         reactions = []
         species_set = set()
+        has_thermo = False
 
         for _, row in df.iterrows():
             reaction = self.parse_reaction(row)
@@ -47,9 +49,18 @@ class LatentTGASParser(BaseParser):
                 reactions.append(reaction)
                 species_set.update(reaction.reactants)
                 species_set.update(reaction.products)
+                if isinstance(reaction, ThermoRate):
+                    has_thermo = True
 
-        # Create species list
+        species_set.discard("TGAS")
+
+        # Create species list. TGAS (gas temperature, folded into the
+        # abundance vector for thermal-balance networks) must be last so
+        # ThermoRate/AbstractPhysics.integrates_temperature can rely on a
+        # fixed position for it.
         species = [Species(name, 0.0) for name in sorted(species_set)]
+        if has_thermo:
+            species.append(Species("TGAS", 0.0))
 
         # Create network
         return Network(species, reactions, use_sparse=True, vectorize_reactions=True)
@@ -78,6 +89,8 @@ class LatentTGASParser(BaseParser):
                 return KAReaction(
                     reaction_type, reactants, products, alpha, beta, gamma
                 )
+            elif reaction_type == "THERMO":
+                return ThermoRate(reaction_type, reactants, products)
             else:
                 raise ValueError(f"Unknown reaction type: {reaction_type}")
 

@@ -32,6 +32,14 @@ pip install -e .[dev]
 pre-commit install
 ```
 
+To build the API/physics docs (generated from docstrings via `mkdocstrings`,
+see `docs/`), use the `docs` extra:
+
+```bash
+pip install -e .[docs]
+mkdocs serve   # live preview at http://127.0.0.1:8000
+```
+
 ## Python API
 
 A minimal end-to-end example that runs a network from a CSV file:

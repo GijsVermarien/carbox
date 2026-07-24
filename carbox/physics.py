@@ -31,6 +31,16 @@ class AbstractPhysics(eqx.Module):
 
     Subclasses must implement ``get_conditions``. The remaining methods have
     sensible defaults.
+
+    Concrete subclasses may optionally declare a static field
+    ``integrates_temperature: bool = eqx.field(static=True, default=False)``
+    to opt into self-consistent thermal balance: when True, the solver reads
+    T from the integrated state (``y[jnetwork.idx.TGAS]``, see thermo.py's
+    ThermoRate) instead of from ``get_conditions``'s T. Callers should read
+    it via ``getattr(physics, "integrates_temperature", False)`` since it's
+    not declared here (adding a defaulted field to this base class would
+    break dataclass field ordering in subclasses that have non-default
+    fields, e.g. StaticCloudPhysics.number_density).
     """
 
     def get_conditions(self, t_sec) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
@@ -83,6 +93,11 @@ class StaticCloudPhysics(AbstractPhysics):
     use_self_consistent_av: bool = False
     base_av: float = 0.0             # Base Av before column contribution
     cloud_radius_pc: float = 1.0     # Cloud radius [pc]
+    # If True, temperature is read from the integrated state (a "TGAS"
+    # pseudo-species, see thermo.py) instead of the constant `temperature`
+    # field above, which then only supplies the initial condition. Static:
+    # a plain Python bool, so it costs nothing when False (the default).
+    integrates_temperature: bool = eqx.field(static=True, default=False)
 
     def _av(self) -> float:
         if not self.use_self_consistent_av:
@@ -122,6 +137,9 @@ class CSEPhysics(AbstractPhysics):
     KM_CM = KM_CM
     MH = MH
     MU = 2.3          # Mean molecular weight (H2 + He)
+
+    # See StaticCloudPhysics.integrates_temperature.
+    integrates_temperature: bool = eqx.field(static=True, default=False)
 
     def get_conditions(self, t_sec):
         # Current radius: r = r_init + v * t

@@ -102,6 +102,13 @@ def solve_network(
         # Get dynamic physical conditions from the physics model
         n, T, av, r = physics.get_conditions(t)
 
+        # For thermal-balance networks (see thermo.py's ThermoRate), T is
+        # integrated alongside abundances instead of prescribed by the
+        # physics model. `integrates_temperature` is a static Python bool,
+        # so this branch costs nothing when False (the default).
+        if getattr(physics, "integrates_temperature", False):
+            T = y[jnetwork.idx.TGAS]
+
         # Chemical source/sink term (jnetwork captured from closure)
         dy_chem = jnetwork(t, y, T, n, config.cr_rate, config.fuv_field, av)
 
@@ -216,6 +223,11 @@ def compute_derivatives(
         # Get dynamic physical conditions from the physics model
         n, T, av, r = physics.get_conditions(t)
 
+        # See solve_network's _ode_func for why this branch is free when
+        # integrates_temperature is False (the default).
+        if getattr(physics, "integrates_temperature", False):
+            T = y[jnetwork.idx.TGAS]
+
         # Chemical source/sink term (jnetwork's rate modifiers, if any, apply
         # automatically since they're baked into the network itself)
         dy_chem = jnetwork(t, y, T, n, config.cr_rate, config.fuv_field, av)
@@ -264,6 +276,8 @@ def compute_reaction_rates(
 
     def _compute_single(t, y):
         n, T, av, r = physics.get_conditions(t)
+        if getattr(physics, "integrates_temperature", False):
+            T = y[jnetwork.idx.TGAS]
         # Convert fractional abundances to number densities before passing to get_rates
         abundances_num_density = y * n
         rates = jnetwork.get_rates(T, config.cr_rate, config.fuv_field, av, abundances_num_density)

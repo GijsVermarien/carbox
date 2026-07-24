@@ -65,12 +65,15 @@ class Reaction:
     def __repr__(self):
         return f"Reaction(id={self.reaction_id}, type={self.reaction_type}, {self.reactants}, {self.products})\n"
 
-    def _reaction_rate_factory() -> JReactionRateTerm:
-        # Abstract function to implement in subclasses
+    def _reaction_rate_factory(self, idx=None) -> JReactionRateTerm:
+        # Abstract function to implement in subclasses. `idx` is the
+        # network's species-name -> index lookup (see `carbox.index.Idx`);
+        # only reaction types that need species-level indexing (e.g.
+        # ThermoRate) use it, everyone else can ignore it.
         raise NotImplementedError
 
-    def __call__(self):
-        return self._reaction_rate_factory()
+    def __call__(self, idx=None):
+        return self._reaction_rate_factory(idx)
 
 # --- Rate Term Classes (Defined at module level for efficiency) ---
 
@@ -453,7 +456,7 @@ class KAReaction(Reaction):
         self.beta = beta
         self.gamma = gamma
 
-    def _reaction_rate_factory(self) -> JReactionRateTerm:
+    def _reaction_rate_factory(self, idx=None) -> JReactionRateTerm:
         return KAReactionRateTerm(
             jnp.array(self.alpha), jnp.array(self.beta), jnp.array(self.gamma)
         )
@@ -470,7 +473,7 @@ class KAFixedReaction(Reaction):
             * jnp.exp(-gamma / temperature)
         )
 
-    def _reaction_rate_factory(self) -> JReactionRateTerm:
+    def _reaction_rate_factory(self, idx=None) -> JReactionRateTerm:
         return KAFixedReactionRateTerm(jnp.array(self.reaction_coeff))
 
 
@@ -479,7 +482,7 @@ class CRPReaction(Reaction):
         super().__init__(reaction_type, reactants, products, reaction_id=reaction_id)
         self.alpha = alpha
 
-    def _reaction_rate_factory(self) -> JReactionRateTerm:
+    def _reaction_rate_factory(self, idx=None) -> JReactionRateTerm:
         return CRPReactionRateTerm(jnp.array(self.alpha))
 
 
@@ -490,7 +493,7 @@ class CRPhotoReaction(Reaction):
         self.beta = beta
         self.gamma = gamma
 
-    def _reaction_rate_factory(self) -> JReactionRateTerm:
+    def _reaction_rate_factory(self, idx=None) -> JReactionRateTerm:
         return CRPhotoReactionRateTerm(
             jnp.array(self.alpha),
             jnp.array(self.beta),
@@ -506,7 +509,7 @@ class FUVReaction(Reaction):
         super().__init__(reaction_type, reactants, products, reaction_id=reaction_id)
         self.alpha = alpha
 
-    def _reaction_rate_factory(self) -> JReactionRateTerm:
+    def _reaction_rate_factory(self, idx=None) -> JReactionRateTerm:
         return FUVReactionRateTerm(jnp.array(self.alpha))
 
 
@@ -516,7 +519,7 @@ class H2FormReaction(Reaction):
         self.alpha = alpha
         self.gas2dust = gas2dust
 
-    def _reaction_rate_factory(self) -> JReactionRateTerm:
+    def _reaction_rate_factory(self, idx=None) -> JReactionRateTerm:
         return H2ReactionRateTerm(jnp.array(self.alpha), jnp.array(self.gas2dust))
 
 
@@ -585,7 +588,7 @@ class UCLCHEMH2FormReaction(Reaction):
             if hasattr(self, k):
                 setattr(self, k, v)
 
-    def _reaction_rate_factory(self) -> JReactionRateTerm:
+    def _reaction_rate_factory(self, idx=None) -> JReactionRateTerm:
         return UCLCHEMH2FormRateTerm(
             silicate_mu=jnp.array(self.silicate_mu),
             silicate_e_s=jnp.array(self.silicate_e_s),
@@ -615,7 +618,7 @@ class UCLCHEMPhotonReaction(Reaction):
         self.beta = beta
         self.gamma = gamma
 
-    def _reaction_rate_factory(self) -> JReactionRateTerm:
+    def _reaction_rate_factory(self, idx=None) -> JReactionRateTerm:
         return UCLCHEMPhotonRateTerm(
             jnp.array(self.alpha), jnp.array(self.beta), jnp.array(self.gamma)
         )
@@ -631,7 +634,7 @@ class UMISTPhotoReaction(Reaction):
         self.beta = beta
         self.gamma = gamma
 
-    def _reaction_rate_factory(self) -> JReactionRateTerm:
+    def _reaction_rate_factory(self, idx=None) -> JReactionRateTerm:
         return PHReactionRateTerm(
             jnp.array(self.alpha), jnp.array(self.beta), jnp.array(self.gamma)
         )
@@ -649,7 +652,7 @@ class IonPol1Reaction(Reaction):
         self.beta = beta
         self.gamma = gamma
 
-    def _reaction_rate_factory(self) -> JReactionRateTerm:
+    def _reaction_rate_factory(self, idx=None) -> JReactionRateTerm:
         return IonPol1RateTerm(
             jnp.array(self.alpha), jnp.array(self.beta), jnp.array(self.gamma)
         )
@@ -666,7 +669,7 @@ class IonPol2Reaction(Reaction):
         self.beta = beta
         self.gamma = gamma
 
-    def _reaction_rate_factory(self) -> JReactionRateTerm:
+    def _reaction_rate_factory(self, idx=None) -> JReactionRateTerm:
         return IonPol2RateTerm(
             jnp.array(self.alpha), jnp.array(self.beta), jnp.array(self.gamma)
         )
@@ -680,7 +683,7 @@ class GARReaction(Reaction):
     def __init__(self, reaction_type, reactants, products, reaction_id: Optional[int] = None):
         super().__init__(reaction_type, reactants, products, reaction_id=reaction_id)
 
-    def _reaction_rate_factory(self) -> JReactionRateTerm:
+    def _reaction_rate_factory(self, idx=None) -> JReactionRateTerm:
         class GARRateTerm(JReactionRateTerm):
             def __call__(
                 self,
@@ -719,7 +722,7 @@ class H2PhotoDissReaction(Reaction):
         self.turb_vel = turb_vel
         self.h2_species_index = h2_species_index
 
-    def _reaction_rate_factory(self) -> JReactionRateTerm:
+    def _reaction_rate_factory(self, idx=None) -> JReactionRateTerm:
         return H2PhotoDissRateTerm(
             jnp.array(self.cloud_radius_pc),
             jnp.array(self.turb_vel),
@@ -750,7 +753,7 @@ class COPhotoDissReaction(Reaction):
         self.h2_species_index = h2_species_index
         self.co_species_index = co_species_index
 
-    def _reaction_rate_factory(self) -> JReactionRateTerm:
+    def _reaction_rate_factory(self, idx=None) -> JReactionRateTerm:
         return COPhotoDissRateTerm(
             jnp.array(self.cloud_radius_pc),
             self.h2_species_index,
@@ -786,7 +789,7 @@ class CIonizationReaction(Reaction):
         self.c_species_index = c_species_index
         self.h2_species_index = h2_species_index
 
-    def _reaction_rate_factory(self) -> JReactionRateTerm:
+    def _reaction_rate_factory(self, idx=None) -> JReactionRateTerm:
         return CIonizationRateTerm(
             jnp.array(self.alpha),
             jnp.array(self.gamma),

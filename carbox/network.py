@@ -8,6 +8,7 @@ import jax.numpy as jnp
 from jax.experimental import sparse
 import numpy as np
 
+from .index import Idx
 from .reactions import JReactionRateTerm, Reaction
 from .species import Species
 
@@ -29,6 +30,11 @@ class JNetwork(eqx.Module):
     # without recompiling the network. Default to the identity (a=1, b=0).
     rate_modifier_a: jnp.ndarray
     rate_modifier_b: jnp.ndarray
+    # Static species-name -> index lookup (zero pytree leaves, see carbox.index.Idx).
+    # For thermal-balance networks, `idx.TGAS` gives the temperature "species"
+    # slot in the abundance vector (see AbstractPhysics.integrates_temperature
+    # in physics.py and ThermoRate in thermo.py).
+    idx: Idx
 
     def __init__(
         self,
@@ -36,6 +42,7 @@ class JNetwork(eqx.Module):
         reactions,
         reactant_multipliers,
         molecularities,
+        idx,
         rate_modifier_a=None,
         rate_modifier_b=None,
     ):
@@ -46,6 +53,7 @@ class JNetwork(eqx.Module):
         self.reactant_multipliers = reactant_multipliers
         self.molecularities = molecularities
         self.reactions_number = self.reactant_multipliers.shape[0]
+        self.idx = idx
         self.rate_modifier_a = (
             jnp.ones(self.reactions_number) if rate_modifier_a is None else rate_modifier_a
         )
@@ -136,6 +144,7 @@ class Network:
     incidence: jnp.array
     use_sparse: bool
     vectorize_reactions: bool
+    idx: Idx
 
     def __init__(self, species, reactions, use_sparse=True, vectorize_reactions=True):
         self.species = species  # S
@@ -146,6 +155,9 @@ class Network:
 
         # Create the incidence matrix (S species, R reactions)
         self.incidence = self.construct_incidence(self.species, self.reactions)
+
+        # Static species-name -> index lookup, e.g. `network.idx.H2`
+        self.idx = Idx({sp.name: i for i, sp in enumerate(self.species)})
 
     def get_reactant_multipliers(self, incidence):
         # In order to correctly get the flux, we need to multiply the rates per reaction
@@ -302,6 +314,12 @@ class Network:
         """
         return self.species.index(species)
 
+    def get_indexes(self, species_list: List[str]) -> List[int]:
+        """
+        Get the indices of a list of species in the network.
+        """
+        return [self.get_index(species) for species in species_list]
+
     def get_elemental_contents(self, elements=["C", "H", "O", "charge"]):
         """
         Get the elemental contents of the species in the network.
@@ -315,6 +333,12 @@ class Network:
         # Fill the elemental content array with the elemental content of each species
         for i, species_obj in enumerate(self.species):
             species_name = species_obj.name
+            # TGAS is the temperature pseudo-species (thermal balance, see
+            # thermo.py) -- it has no elemental content, and skipping it here
+            # also avoids "TGAS" spuriously matching an element substring
+            # (e.g. "S" for sulfur).
+            if species_name == "TGAS":
+                continue
             for element in elements:
                 if element in species_name:
                     # acount for number of atoms in the species
@@ -397,12 +421,14 @@ class Network:
             COPhotoDissReaction,
             H2PhotoDissReaction,
         )
+        from .thermo import ThermoRate
 
         # Types that should not be vectorized due to unique parameters
         non_vectorizable_types = (
             H2PhotoDissReaction,
             COPhotoDissReaction,
             CIonizationReaction,
+            ThermoRate,
         )
 
         if self.vectorize_reactions:
@@ -435,7 +461,7 @@ class Network:
                 # The molecularity is infered from the number of reactants
                 del params["molecularity"]
                 vectorized_reaction = reaction_classes[reaction_type](**params)
-                self.jreactions.append(vectorized_reaction())
+                self.jreactions.append(vectorized_reaction(self.idx))
 
                 # Track reactions (and their molecularity) in the new order,
                 # matching the incidence matrix reconstruction below
@@ -444,7 +470,7 @@ class Network:
 
             # Add non-vectorizable reactions individually
             for reaction in non_vectorizable_reactions:
-                self.jreactions.append(_ScalarRateTermWrapper(reaction()))
+                self.jreactions.append(_ScalarRateTermWrapper(reaction(self.idx)))
                 reordered_reactions.append(reaction)
                 molecularities.append(int(reaction.molecularity))
 
@@ -457,7 +483,7 @@ class Network:
             self.reactions = reordered_reactions
             self.incidence = incidence
         else:
-            self.jreactions = [reaction() for reaction in self.reactions]
+            self.jreactions = [reaction(self.idx) for reaction in self.reactions]
             incidence = self.incidence
             molecularities = [int(r.molecularity) for r in self.reactions]
 
@@ -468,4 +494,5 @@ class Network:
             self.jreactions,
             reactant_multipliers=reactant_multipliers,
             molecularities=jnp.array(molecularities),
+            idx=self.idx,
         )
