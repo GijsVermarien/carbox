@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 import diffrax as dx
+import jax
 import jax.numpy as jnp
 import pandas as pd
 
@@ -63,51 +64,37 @@ def save_abundances(
     -----
     Output format:
     - Columns: time, physical parameters, then species abundances
-    - Values: fractional abundances relative to H nuclei (x_i = n_i / n_{H,nuclei})
-    - n_{H,nuclei} = 2*n(H2) + n(H)
+    - Values: fractional abundances relative to total gas density,
+      x_i = n_i / n_gas (the ODE state itself)
     - Physical parameters repeated for each row (for easy filtering/grouping)
     """
     output_path = prepare_output_directory(config)
 
     species_names = [s.name for s in network.species]
 
-    # Calculate hydrogen nuclei density for each timestep
-    # n_{H,nuclei} = 2*n(H2) + n(H)
-    h2_idx = None
-    h_idx = None
-    for i, name in enumerate(species_names):
-        if name == "H2":
-            h2_idx = i
-        elif name == "H":
-            h_idx = i
-    """
-    if h2_idx is not None and h_idx is not None:
-        n_h_nuclei = 2 * solution.ys[:, h2_idx] + solution.ys[:, h_idx]
-    elif h2_idx is not None:
-        n_h_nuclei = 2 * solution.ys[:, h2_idx]
-    elif h_idx is not None:
-        n_h_nuclei = solution.ys[:, h_idx]
-    else:
-        # Fallback to total density if no H or H2
-    """
-    n_h_nuclei = config.number_density
+    # Physical conditions along the trajectory (n, T, av, r)
+    physics = config.physics_model
+    get_cond_vec = jax.vmap(physics.get_conditions)
+    densities, temperatures, avs, radii = get_cond_vec(solution.ts)
 
-    # Create DataFrame with time and physical parameter columns
-    df = pd.DataFrame(
-        {
-            "time_seconds": solution.ts,
-            "time_years": solution.ts / SPY,
-            "number_density": config.number_density,
-            "temperature": config.temperature,
-            "cr_rate": config.cr_rate,
-            "fuv_field": config.fuv_field,
-            "visual_extinction": config.compute_visual_extinction(),
-        }
-    )
+    # 1. Start with the base physics data
+    data = {
+        "time_seconds": solution.ts,
+        "time_years": solution.ts / SPY,
+        "radius_cm": radii,
+        "number_density": densities,
+        "temperature": temperatures,
+        "cr_rate": config.cr_rate,
+        "fuv_field": config.fuv_field,
+        "visual_extinction": avs,
+    }
 
-    # Add species fractional abundances (relative to H nuclei)
+    # 2. Add all species to the dictionary (already fractional; the ODE state)
     for i, name in enumerate(species_names):
-        df[name] = solution.ys[:, i] / n_h_nuclei
+        data[name] = solution.ys[:, i]
+
+    # 3. Create the DataFrame in one go
+    df = pd.DataFrame(data)
 
     filepath = output_path / f"{config.run_name}_abundances.csv"
     df.to_csv(filepath, index=False)
@@ -145,22 +132,28 @@ def save_derivatives(
 
     species_names = [s.name for s in network.species]
 
-    # Create DataFrame with time and physical parameter columns
-    df = pd.DataFrame(
-        {
-            "time_seconds": times,
-            "time_years": times / SPY,
-            "number_density": config.number_density,
-            "temperature": config.temperature,
-            "cr_rate": config.cr_rate,
-            "fuv_field": config.fuv_field,
-            "visual_extinction": config.compute_visual_extinction(),
-        }
-    )
+    # Physical conditions along the trajectory
+    get_cond_vec = jax.vmap(config.physics_model.get_conditions)
+    n_dyn, T_dyn, av_dyn, r_dyn = get_cond_vec(times)
 
-    # Add derivatives
+    # 1. Base physics data
+    data = {
+        "time_seconds": times,
+        "time_years": times / SPY,
+        "radius_cm": r_dyn,
+        "number_density": n_dyn,
+        "temperature": T_dyn,
+        "cr_rate": config.cr_rate,
+        "fuv_field": config.fuv_field,
+        "visual_extinction": av_dyn,
+    }
+
+    # 2. Add all derivatives to dictionary
     for i, name in enumerate(species_names):
-        df[f"d{name}_dt"] = derivatives[:, i]
+        data[f"d{name}_dt"] = derivatives[:, i]
+
+    # 3. Build DataFrame
+    df = pd.DataFrame(data)
 
     filepath = output_path / f"{config.run_name}_derivatives.csv"
     df.to_csv(filepath, index=False)
@@ -196,25 +189,32 @@ def save_reaction_rates(
     """
     output_path = prepare_output_directory(config)
 
-    # Use reaction type as column names (could be more descriptive)
-    reaction_names = [f"{r.reaction_type}_{i}" for i, r in enumerate(network.reactions)]
+    # Reaction rates are saved with numerical column names (0, 1, 2, ...)
 
-    # Create DataFrame with time and physical parameter columns
-    df = pd.DataFrame(
-        {
-            "time_seconds": times,
-            "time_years": times / SPY,
-            "number_density": config.number_density,
-            "temperature": config.temperature,
-            "cr_rate": config.cr_rate,
-            "fuv_field": config.fuv_field,
-            "visual_extinction": config.visual_extinction,
-        }
-    )
+    # Physical conditions along the trajectory
+    get_cond_vec = jax.vmap(config.physics_model.get_conditions)
+    n_dyn, T_dyn, av_dyn, r_dyn = get_cond_vec(times)
 
-    # Add reaction rates
-    for i, name in enumerate(reaction_names):
-        df[name] = rates[:, i]
+    # 1. Create the base data dictionary
+    data = {
+        "time_seconds": times,
+        "time_years": times / SPY,
+        "radius_cm": r_dyn,
+        "number_density": n_dyn,
+        "temperature": T_dyn,
+        "cr_rate": config.cr_rate,
+        "fuv_field": config.fuv_field,
+        "visual_extinction": av_dyn,
+    }
+
+    # 2. Add all reaction rates to the dictionary first
+    # This avoids the "fragmentation" warning completely
+    for i in range(rates.shape[1]):
+            data[str(i)] = rates[:, i]
+            
+    # 3. Create the DataFrame once
+    df = pd.DataFrame(data)
+
 
     filepath = output_path / f"{config.run_name}_rates.csv"
     df.to_csv(filepath, index=False)
@@ -258,6 +258,10 @@ def save_metadata(
     """
     output_path = prepare_output_directory(config)
 
+    # Physical conditions at the start of the integration
+    physics = config.physics_model
+    n0, T0, av0, r0 = physics.get_conditions(config.t_start * SPY)
+
     metadata = {
         "timestamp": datetime.now().isoformat(),
         "run_name": config.run_name,
@@ -265,15 +269,13 @@ def save_metadata(
         # Configuration
         "config": {
             "physical_params": {
-                "number_density": config.number_density,
-                "temperature": config.temperature,
+                "physics_model": type(physics).__name__,
+                "number_density_initial": float(n0),
+                "temperature_initial": float(T0),
+                "visual_extinction_initial": float(av0),
+                "radius_initial_cm": float(r0),
                 "cr_rate": config.cr_rate,
                 "fuv_field": config.fuv_field,
-                "visual_extinction": config.compute_visual_extinction(),
-                "visual_extinction_config": config.visual_extinction,
-                "use_self_consistent_av": config.use_self_consistent_av,
-                "cloud_radius_pc": config.cloud_radius_pc,
-                "base_av": config.base_av,
             },
             "integration": {
                 "t_start": config.t_start,
@@ -345,12 +347,14 @@ def save_summary_report(
     lines.append(f"Timestamp: {datetime.now().isoformat()}")
     lines.append("")
 
-    lines.append("Physical Parameters:")
-    lines.append(f"  Total density: {config.number_density:.2e} cm^-3")
-    lines.append(f"  Temperature: {config.temperature:.1f} K")
+    physics = config.physics_model
+    n0, T0, av0, _ = physics.get_conditions(config.t_start * SPY)
+    lines.append(f"Physical Parameters ({type(physics).__name__}, at t_start):")
+    lines.append(f"  Total density: {float(n0):.2e} cm^-3")
+    lines.append(f"  Temperature: {float(T0):.1f} K")
     lines.append(f"  CR ionization rate: {config.cr_rate:.2e} s^-1")
     lines.append(f"  FUV field: {config.fuv_field:.2e} Draine")
-    lines.append(f"  Visual extinction: {config.visual_extinction:.1f} mag")
+    lines.append(f"  Visual extinction: {float(av0):.1f} mag")
     lines.append("")
 
     lines.append("Integration:")
@@ -378,7 +382,10 @@ def save_summary_report(
     sorted_indices = jnp.argsort(final_abundances)[::-1]
     for i in range(min(10, len(sorted_indices))):
         idx = sorted_indices[i]
-        lines.append(f"  {species_names[idx]:<10} {final_abundances[idx]:.3e} cm^-3")
+        # TGAS (thermal-balance pseudo-species, see thermo.py) holds Kelvin,
+        # not a fractional abundance -- every other entry is unitless (x_i).
+        unit = "K" if species_names[idx] == "TGAS" else "(fractional)"
+        lines.append(f"  {species_names[idx]:<10} {final_abundances[idx]:.3e} {unit}")
 
     lines.append("=" * 60)
 
