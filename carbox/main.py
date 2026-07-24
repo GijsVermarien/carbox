@@ -248,6 +248,11 @@ def solve(network_bundle, config, rate_modifiers=None):
         - 'jnetwork': Compiled JAX ODE system
     config : SimulationConfig
         Simulation configuration
+    rate_modifiers : tuple of (rate_modifier_a, rate_modifier_b), optional
+        Per-reaction rate scaling/override (a*rate + b). If given, is baked
+        into `network_bundle["jnetwork"]` in place, so a later call to
+        `compute_derivatives`/`compute_reaction_rates` with the same bundle
+        stays consistent with what was actually integrated.
 
     Returns
     -------
@@ -257,9 +262,12 @@ def solve(network_bundle, config, rate_modifiers=None):
 
     jnetwork = network_bundle["jnetwork"]
     network = network_bundle["network"]
+    if rate_modifiers is not None:
+        rate_modifier_a, rate_modifier_b = rate_modifiers
+        jnetwork = jnetwork.with_rate_modifiers(rate_modifier_a, rate_modifier_b)
+        network_bundle["jnetwork"] = jnetwork
     y0 = initialize_abundances(network, config, verbose=False)
-    solution = solve_network(jnetwork, y0, config,
-                             rate_modifiers=rate_modifiers)
+    solution = solve_network(jnetwork, y0, config)
 
     return solution
 

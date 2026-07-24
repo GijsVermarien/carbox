@@ -25,8 +25,20 @@ class JNetwork(eqx.Module):
     reactant_multipliers: jnp.array
     molecularities: jnp.ndarray
     reactions_number: int
+    # Rate modifiers let a reaction's rate be scaled/overridden (a*rate + b)
+    # without recompiling the network. Default to the identity (a=1, b=0).
+    rate_modifier_a: jnp.ndarray
+    rate_modifier_b: jnp.ndarray
 
-    def __init__(self, incidence, reactions, reactant_multipliers, molecularities):
+    def __init__(
+        self,
+        incidence,
+        reactions,
+        reactant_multipliers,
+        molecularities,
+        rate_modifier_a=None,
+        rate_modifier_b=None,
+    ):
         # Ensure incidence is treated as a static structure if possible,
         # but as a Module field it's fine as a jnp.array.
         self.incidence = incidence
@@ -34,6 +46,21 @@ class JNetwork(eqx.Module):
         self.reactant_multipliers = reactant_multipliers
         self.molecularities = molecularities
         self.reactions_number = self.reactant_multipliers.shape[0]
+        self.rate_modifier_a = (
+            jnp.ones(self.reactions_number) if rate_modifier_a is None else rate_modifier_a
+        )
+        self.rate_modifier_b = (
+            jnp.zeros(self.reactions_number) if rate_modifier_b is None else rate_modifier_b
+        )
+
+    def with_rate_modifiers(self, rate_modifier_a=None, rate_modifier_b=None):
+        """Return a copy of this network with new rate modifiers, without recompiling."""
+        new = self
+        if rate_modifier_a is not None:
+            new = eqx.tree_at(lambda n: n.rate_modifier_a, new, rate_modifier_a)
+        if rate_modifier_b is not None:
+            new = eqx.tree_at(lambda n: n.rate_modifier_b, new, rate_modifier_b)
+        return new
 
     def get_rates(self, temperature, cr_rate, fuv_rate, visual_extinction, abundances):
         # List comprehension is okay for JIT, but it unrolls the loop.
@@ -42,6 +69,15 @@ class JNetwork(eqx.Module):
             r(temperature, cr_rate, fuv_rate, visual_extinction, abundances)
             for r in self.reactions
         ])
+
+    def modify_rates(self, rates):
+        """
+        Apply this network's rate modifiers (a*rate + b) to raw rate
+        coefficients from `get_rates`. Identity by default (a=1, b=0); see
+        `with_rate_modifiers` for scaling/overriding specific reactions
+        without recompiling the network.
+        """
+        return rates * self.rate_modifier_a + self.rate_modifier_b
 
     def multiply_rates_by_abundance(self, rates, abundances):
         """
@@ -69,8 +105,6 @@ class JNetwork(eqx.Module):
         cr_rate: jnp.array,
         fuv_rate: jnp.array,
         visual_extinction: jnp.array,
-        rate_modifier_a: jnp.array, # default to 1.0, can be used to scale the rates
-        rate_modifier_b: jnp.array, # default to 0.0, can be used to set the rates to a specific value when rate_modifier_a = 0 (overriding the original rates)
     ) -> jnp.array:
         # `abundances` are fractional (relative to total gas density `density`).
         # Rate coefficients are evaluated with number densities, since
@@ -80,12 +114,7 @@ class JNetwork(eqx.Module):
             temperature, cr_rate, fuv_rate, visual_extinction, number_densities
         )
 
-        # this is to modify the rates without having to recompile the network.
-        # default: rate_modifier_a = 1.0, rate_modifier_b = 0.0, so that the rates are unchanged.
-        # when a custom value is provided, e.g. for rate 10, we can set
-        #  rate_modifier_a[10] = 0.0 and rate_modifier_b[10] = some_value to set the rate to some_value (overriding the original rate).
-        # This can also used to scale the rates by setting rate_modifier_a to some_scaling_value and keeping rate_modifier_b = 0.0.
-        rates = rates * rate_modifier_a + rate_modifier_b
+        rates = self.modify_rates(rates)
 
         # Multiply by the (fractional) abundances of the reactants
         rates = self.multiply_rates_by_abundance(rates, abundances)

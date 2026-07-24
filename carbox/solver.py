@@ -89,11 +89,12 @@ def solve_network(
     # StaticCloudPhysics from the legacy scalar fields if none is given)
     physics = config.physics_model
 
-    if rate_modifiers is None:
-        rate_modifier_a = jnp.ones(jnetwork.reactions_number)
-        rate_modifier_b = jnp.zeros(jnetwork.reactions_number)
-    else:
+    # Rate modifiers (a*rate + b) are baked into the network so every
+    # downstream consumer of `jnetwork` (derivatives, rates) stays consistent
+    # with what was actually integrated, without recompiling the network.
+    if rate_modifiers is not None:
         rate_modifier_a, rate_modifier_b = rate_modifiers
+        jnetwork = jnetwork.with_rate_modifiers(rate_modifier_a, rate_modifier_b)
 
     # Define ODE term
     def _ode_func(t, y, args):
@@ -102,15 +103,7 @@ def solve_network(
         n, T, av, r = physics.get_conditions(t)
 
         # Chemical source/sink term (jnetwork captured from closure)
-        # this is to modify the rates without having to recompile the network.
-        # default: rate_modifier_a = 1.0, rate_modifier_b = 0.0, so that the rates are unchanged.
-        # when a custom value is provided, e.g. for rate 10, we can set
-        #  rate_modifier_a[10] = 0.0 and rate_modifier_b[10] = some_value to set the rate to some_value (overriding the original rate).
-        # This can also used to scale the rates by setting rate_modifier_a to some_scaling_value and keeping rate_modifier_b = 0.0.
-        dy_chem = jnetwork(
-            t, y, T, n, config.cr_rate, config.fuv_field, av,
-            rate_modifier_a, rate_modifier_b,
-        )
+        dy_chem = jnetwork(t, y, T, n, config.cr_rate, config.fuv_field, av)
 
         # Non-chemical term (e.g. expansion dilution; zero for static clouds)
         return dy_chem + physics.dilution(t, y)
@@ -199,7 +192,9 @@ def compute_derivatives(
     Parameters
     ----------
     jnetwork : JNetwork
-        Compiled network
+        Compiled network. Any rate modifiers baked into it (see
+        `JNetwork.with_rate_modifiers`) are applied automatically, so pass
+        the same `jnetwork` that was used to produce `solution`.
     solution : dx.Solution
         Integration solution
     config : SimulationConfig
@@ -221,13 +216,9 @@ def compute_derivatives(
         # Get dynamic physical conditions from the physics model
         n, T, av, r = physics.get_conditions(t)
 
-        # Chemical source/sink term (no rate modification when recomputing derivatives)
-        rate_modifier_a = jnp.ones(jnetwork.reactions_number)
-        rate_modifier_b = jnp.zeros(jnetwork.reactions_number)
-        dy_chem = jnetwork(
-            t, y, T, n, config.cr_rate, config.fuv_field, av,
-            rate_modifier_a, rate_modifier_b,
-        )
+        # Chemical source/sink term (jnetwork's rate modifiers, if any, apply
+        # automatically since they're baked into the network itself)
+        dy_chem = jnetwork(t, y, T, n, config.cr_rate, config.fuv_field, av)
         return dy_chem + physics.dilution(t, y)
 
     # Vectorize over time and state
@@ -242,9 +233,10 @@ def compute_reaction_rates(
     jnetwork: JNetwork,
     solution: dx.Solution,
     config: SimulationConfig,
+    use_rate_modifiers: bool = True,
 ) -> jnp.ndarray:
     """
-    Compute reaction rates at solution snapshots.
+    Compute reaction rate coefficients at solution snapshots.
 
     Parameters
     ----------
@@ -254,16 +246,19 @@ def compute_reaction_rates(
         Integration solution
     config : SimulationConfig
         Configuration with physical parameters
+    use_rate_modifiers : bool, default True
+        If True (default), apply `jnetwork`'s rate modifiers
+        (`rate_modifier_a`/`rate_modifier_b`, see `with_rate_modifiers`) —
+        the coefficients as actually used in the integration. If False,
+        return the unmodified coefficients straight from the reaction
+        parameterizations, ignoring any modifiers.
 
     Returns
     -------
     rates : jnp.ndarray
-        Reaction rates [n_snapshots, n_reactions]
-
-    Notes
-    -----
-    Raw rate coefficients (not multiplied by abundances).
-    Units depend on reaction type (typically cm^3/s for bimolecular).
+        Reaction rate coefficients [n_snapshots, n_reactions], not
+        multiplied by reactant abundances.
+        Units depend on reaction type (typically cm^3/s for bimolecular).
     """
     physics = config.physics_model
 
@@ -271,7 +266,8 @@ def compute_reaction_rates(
         n, T, av, r = physics.get_conditions(t)
         # Convert fractional abundances to number densities before passing to get_rates
         abundances_num_density = y * n
-        return jnetwork.get_rates(T, config.cr_rate, config.fuv_field, av, abundances_num_density)
+        rates = jnetwork.get_rates(T, config.cr_rate, config.fuv_field, av, abundances_num_density)
+        return jnetwork.modify_rates(rates) if use_rate_modifiers else rates
 
     # Vectorize over time and state
     @eqx.filter_jit
