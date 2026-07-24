@@ -12,7 +12,7 @@ from .config import SimulationConfig
 from .network import Network
 
 
-def initialize_abundances(network: Network, config: SimulationConfig) -> jnp.ndarray:
+def initialize_abundances(network: Network, config: SimulationConfig, verbose: bool = False) -> jnp.ndarray:
     """
     Initialize abundance vector from configuration.
 
@@ -27,6 +27,8 @@ def initialize_abundances(network: Network, config: SimulationConfig) -> jnp.nda
         Reaction network containing species list
     config : SimulationConfig
         Configuration with initial abundances (fractional, x_i)
+    verbose : bool
+        Whether to print verbose output during initialization
 
     Returns
     -------
@@ -50,9 +52,10 @@ def initialize_abundances(network: Network, config: SimulationConfig) -> jnp.nda
     # Set specified fractional abundances
     species_names = [s.name for s in network.species]
     for species_name, fractional_abundance in config.initial_abundances.items():
-        print(
-            f"Setting initial abundance for {species_name}: {fractional_abundance:.3e} (fractional)"
-        )
+        if verbose:
+            print(
+                f"Setting initial abundance for {species_name}: {fractional_abundance:.3e} (fractional)"
+            )
         if species_name in species_names:
             idx = species_names.index(species_name)
             y0 = y0.at[idx].set(fractional_abundance)

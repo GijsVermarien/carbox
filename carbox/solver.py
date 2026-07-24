@@ -56,6 +56,7 @@ def solve_network(
     jnetwork: JNetwork,
     y0: jnp.ndarray,
     config: SimulationConfig,
+    rate_modifiers: Tuple[float] = None,
 ) -> dx.Solution:
     """
     Solve chemical network ODE system.
@@ -88,6 +89,12 @@ def solve_network(
     # StaticCloudPhysics from the legacy scalar fields if none is given)
     physics = config.physics_model
 
+    if rate_modifiers is None:
+        rate_modifier_a = jnp.ones(jnetwork.reactions_number)
+        rate_modifier_b = jnp.zeros(jnetwork.reactions_number)
+    else:
+        rate_modifier_a, rate_modifier_b = rate_modifiers
+
     # Define ODE term
     def _ode_func(t, y, args):
         physics = args
@@ -95,7 +102,15 @@ def solve_network(
         n, T, av, r = physics.get_conditions(t)
 
         # Chemical source/sink term (jnetwork captured from closure)
-        dy_chem = jnetwork(t, y, T, n, config.cr_rate, config.fuv_field, av)
+        # this is to modify the rates without having to recompile the network.
+        # default: rate_modifier_a = 1.0, rate_modifier_b = 0.0, so that the rates are unchanged.
+        # when a custom value is provided, e.g. for rate 10, we can set
+        #  rate_modifier_a[10] = 0.0 and rate_modifier_b[10] = some_value to set the rate to some_value (overriding the original rate).
+        # This can also used to scale the rates by setting rate_modifier_a to some_scaling_value and keeping rate_modifier_b = 0.0.
+        dy_chem = jnetwork(
+            t, y, T, n, config.cr_rate, config.fuv_field, av,
+            rate_modifier_a, rate_modifier_b,
+        )
 
         # Non-chemical term (e.g. expansion dilution; zero for static clouds)
         return dy_chem + physics.dilution(t, y)
@@ -167,7 +182,7 @@ def get_time_grid(config: SimulationConfig) -> jnp.ndarray:
             config.n_snapshots
         )
         t_snapshots_sec = t_snapshots * SPY
-    
+
     # Ensure last point is exactly at t_end (avoid floating point error)
     t_snapshots_sec = t_snapshots_sec.at[-1].set(t_end_sec)
     return t_snapshots_sec
@@ -206,8 +221,13 @@ def compute_derivatives(
         # Get dynamic physical conditions from the physics model
         n, T, av, r = physics.get_conditions(t)
 
-        # Chemical source/sink term
-        dy_chem = jnetwork(t, y, T, n, config.cr_rate, config.fuv_field, av)
+        # Chemical source/sink term (no rate modification when recomputing derivatives)
+        rate_modifier_a = jnp.ones(jnetwork.reactions_number)
+        rate_modifier_b = jnp.zeros(jnetwork.reactions_number)
+        dy_chem = jnetwork(
+            t, y, T, n, config.cr_rate, config.fuv_field, av,
+            rate_modifier_a, rate_modifier_b,
+        )
         return dy_chem + physics.dilution(t, y)
 
     # Vectorize over time and state

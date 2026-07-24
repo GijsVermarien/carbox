@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import jax.numpy as jnp
 import yaml
 
 from .physics import StaticCloudPhysics
@@ -67,6 +68,14 @@ class SimulationConfig:
             Save dy/dt at each snapshot
         save_rates : bool
             Save reaction rates at each snapshot
+        save_metadata : bool
+            Save simulation metadata
+        save_summary : bool
+            Save summary report
+        save_all : Optional[bool]
+            If None, use individual flags.
+            If True, save all outputs (overrides individual flags).
+            If False, save nothing (overrides individual flags).
         run_name : str
             Identifier for this run
     """
@@ -109,6 +118,9 @@ class SimulationConfig:
     save_abundances: bool = True
     save_derivatives: bool = False
     save_rates: bool = False
+    save_metadata: bool = True
+    save_summary: bool = True
+    save_all: Optional[bool] = None
     run_name: str = "carbox_run"
 
     # Physics model (AbstractPhysics). If not given, a StaticCloudPhysics is
@@ -182,6 +194,18 @@ class SimulationConfig:
         av = self.base_av + column_density / 1.6e21
 
         return av
+
+    def get_physical_params_jax(self):
+        """Get JAX arrays for physical parameters (for solver args)."""
+        # Compute Av (either fixed or self-consistent)
+        visual_extinction = self.compute_visual_extinction()
+
+        return {
+            "temperature": jnp.array(self.temperature),
+            "cr_rate": jnp.array(self.cr_rate),
+            "fuv_field": jnp.array(self.fuv_field),
+            "visual_extinction": jnp.array(visual_extinction),
+        }
 
     def validate(self):
         """Basic validation of parameter ranges."""

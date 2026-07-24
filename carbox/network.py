@@ -24,6 +24,7 @@ class JNetwork(eqx.Module):
     reactions: List[JReactionRateTerm]
     reactant_multipliers: jnp.array
     molecularities: jnp.ndarray
+    reactions_number: int
 
     def __init__(self, incidence, reactions, reactant_multipliers, molecularities):
         # Ensure incidence is treated as a static structure if possible,
@@ -32,6 +33,7 @@ class JNetwork(eqx.Module):
         self.reactions = reactions
         self.reactant_multipliers = reactant_multipliers
         self.molecularities = molecularities
+        self.reactions_number = self.reactant_multipliers.shape[0]
 
     def get_rates(self, temperature, cr_rate, fuv_rate, visual_extinction, abundances):
         # List comprehension is okay for JIT, but it unrolls the loop.
@@ -48,13 +50,13 @@ class JNetwork(eqx.Module):
         # Optimization: Pad abundances with 1.0 to handle filler indices (set to N_species)
         # This avoids the slower .at[...].get(mode="fill") operation.
         padded_abundances = jnp.concatenate([abundances, jnp.array([1.0])])
-        
+
         # Gather abundances: shape (n_reactions, 2)
         reactant_abunds = padded_abundances[self.reactant_multipliers]
-        
+
         # Multiply the two columns: shape (n_reactions,)
         rates_multiplier = reactant_abunds[:, 0] * reactant_abunds[:, 1]
-        
+
         return rates * rates_multiplier
 
     @partial(jax.profiler.annotate_function, name="JNetwork._call__")
@@ -67,6 +69,8 @@ class JNetwork(eqx.Module):
         cr_rate: jnp.array,
         fuv_rate: jnp.array,
         visual_extinction: jnp.array,
+        rate_modifier_a: jnp.array, # default to 1.0, can be used to scale the rates
+        rate_modifier_b: jnp.array, # default to 0.0, can be used to set the rates to a specific value when rate_modifier_a = 0 (overriding the original rates)
     ) -> jnp.array:
         # `abundances` are fractional (relative to total gas density `density`).
         # Rate coefficients are evaluated with number densities, since
@@ -75,6 +79,14 @@ class JNetwork(eqx.Module):
         rates = self.get_rates(
             temperature, cr_rate, fuv_rate, visual_extinction, number_densities
         )
+
+        # this is to modify the rates without having to recompile the network.
+        # default: rate_modifier_a = 1.0, rate_modifier_b = 0.0, so that the rates are unchanged.
+        # when a custom value is provided, e.g. for rate 10, we can set
+        #  rate_modifier_a[10] = 0.0 and rate_modifier_b[10] = some_value to set the rate to some_value (overriding the original rate).
+        # This can also used to scale the rates by setting rate_modifier_a to some_scaling_value and keeping rate_modifier_b = 0.0.
+        rates = rates * rate_modifier_a + rate_modifier_b
+
         # Multiply by the (fractional) abundances of the reactants
         rates = self.multiply_rates_by_abundance(rates, abundances)
 
@@ -191,6 +203,36 @@ class Network:
         Get the number of reactions in the network.
         """
         return self.incidence.shape[1]
+
+    def get_rate_modifiers(self, modify_rates_index: List[int], modify_rates_value: List[float]):
+        """
+        Get the rate modifiers for the given indices and values.
+        This can be used to modify the rates without having to recompile the network.
+        For example, to set the rate of reaction 10 to some_value, we can set
+         modify_rates_index = [10] and modify_rates_value = [some_value].
+        To scale the rate of reaction 10 by some_scaling_value, we can set
+         modify_rates_index = [10], modify_rates_value = [some_scaling_value], and then multiply the original rates by the scaling value in the ODE function.
+        """
+        rate_modifier_a = jnp.ones(self.reaction_count())  # default to 1.0 (no modification)
+        rate_modifier_b = jnp.zeros(self.reaction_count())  # default to 0.0 (no modification)
+        for idx, value in zip(modify_rates_index, modify_rates_value):
+            rate_modifier_a = rate_modifier_a.at[idx].set(0.0)  # set a=0 to ignore original rate
+            rate_modifier_b = rate_modifier_b.at[idx].set(value)  # set b=value to override with specific value
+        return [rate_modifier_a, rate_modifier_b]
+
+    def get_rate_scalings(self, scale_rates_index: List[int], scale_rates_value: List[float]):
+        """
+        Get the rate scalings for the given indices and values.
+        This can be used to scale the rates without having to recompile the network.
+        For example, to scale the rate of reaction 10 by some_scaling_value, we can set
+         scale_rates_index = [10] and scale_rates_value = [some_scaling_value], and then multiply the original rates by the scaling value in the ODE function.
+        """
+        rate_modifier_a = jnp.ones(self.reaction_count())  # default to 1.0 (no modification)
+        rate_modifier_b = jnp.zeros(self.reaction_count())  # default to 0.0 (no modification)
+        for idx, value in zip(scale_rates_index, scale_rates_value):
+            rate_modifier_a = rate_modifier_a.at[idx].set(value)  # set a=value to scale original rate
+
+        return [rate_modifier_a, rate_modifier_b]
 
     def construct_incidence(self, species, reactions):
         import numpy as np
