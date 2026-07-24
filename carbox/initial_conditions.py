@@ -62,6 +62,14 @@ def initialize_abundances(network: Network, config: SimulationConfig, verbose: b
         else:
             print(f"Warning: Species '{species_name}' in config not found in network")
 
+    # Thermal-balance networks (see thermo.py's ThermoRate) fold gas
+    # temperature into the abundance vector as a "TGAS" pseudo-species; seed
+    # it from the physics model's initial condition rather than the floor
+    # value used for real species above.
+    if "TGAS" in species_names:
+        initial_temperature = config.physics_model.get_conditions(0.0)[1]
+        y0 = y0.at[species_names.index("TGAS")].set(initial_temperature)
+
     return y0
 
 

@@ -382,7 +382,10 @@ def save_summary_report(
     sorted_indices = jnp.argsort(final_abundances)[::-1]
     for i in range(min(10, len(sorted_indices))):
         idx = sorted_indices[i]
-        lines.append(f"  {species_names[idx]:<10} {final_abundances[idx]:.3e} cm^-3")
+        # TGAS (thermal-balance pseudo-species, see thermo.py) holds Kelvin,
+        # not a fractional abundance -- every other entry is unitless (x_i).
+        unit = "K" if species_names[idx] == "TGAS" else "(fractional)"
+        lines.append(f"  {species_names[idx]:<10} {final_abundances[idx]:.3e} {unit}")
 
     lines.append("=" * 60)
 

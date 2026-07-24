@@ -201,7 +201,7 @@ class SimulationConfig:
         visual_extinction = self.compute_visual_extinction()
 
         return {
-            "temperature": jnp.array(self.temperature),
+            #"temperature": jnp.array(self.temperature),
             "cr_rate": jnp.array(self.cr_rate),
             "fuv_field": jnp.array(self.fuv_field),
             "visual_extinction": jnp.array(visual_extinction),
