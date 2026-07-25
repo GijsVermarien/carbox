@@ -15,7 +15,7 @@ import jax.numpy as jnp
 import pandas as pd
 
 from .config import SimulationConfig
-from .network import JNetwork, Network
+from .network import Network
 from .solver import SPY
 
 

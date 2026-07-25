@@ -27,29 +27,32 @@ from pathlib import Path
 from typing import Optional
 
 import jax
-import jax.numpy as jnp
-import diffrax as dx
-from tqdm import tqdm
 
 # JAX configuration for numerical stability
 jax.config.update("jax_enable_x64", True)
 # jax.config.update("jax_debug_nans", True)  # CRITICAL: Disable for performance
 
-from .config import SimulationConfig
-from .initial_conditions import (
+# Submodule imports must come after the jax.config.update() call above, since
+# some of them trigger jax initialization on import.
+from .config import SimulationConfig  # noqa: E402
+from .initial_conditions import (  # noqa: E402
     abundance_summary,
     initialize_abundances,
     validate_elemental_conservation,
 )
-from .output import (
+from .output import (  # noqa: E402
     save_abundances,
     save_derivatives,
     save_metadata,
     save_reaction_rates,
     save_summary_report,
 )
-from .parsers import parse_chemical_network
-from .solver import compute_derivatives, compute_reaction_rates, solve_network
+from .parsers import parse_chemical_network  # noqa: E402
+from .solver import (  # noqa: E402
+    compute_derivatives,
+    compute_reaction_rates,
+    solve_network,
+)
 
 
 def run_simulation(

@@ -8,17 +8,20 @@ These tests are intended to be fast and exercise:
 - Running a short simulation end-to-end
 """
 
+import sys
 from pathlib import Path
 
 import pytest
 
 # Ensure we can import the local package without installation
 PROJECT_ROOT = Path(__file__).parent.parent
-import sys
-
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from carbox import SimulationConfig, parse_chemical_network, run_simulation
+from carbox import (  # noqa: E402
+    SimulationConfig,
+    parse_chemical_network,
+    run_simulation,
+)
 
 
 @pytest.mark.parametrize("format_type", ["latent_tgas", None])

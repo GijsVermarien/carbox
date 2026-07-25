@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
+from typing import Optional
+
 import pandas as pd
-from typing import List, Optional
+
 from ..network import Network
 from ..reactions import Reaction
 

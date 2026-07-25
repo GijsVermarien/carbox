@@ -15,8 +15,16 @@ pre-commit install
 ```
 
 This installs `pytest` and `ruff` alongside the package itself in editable
-mode. `ruff` uses the default
-settings for linting.
+mode. Run the linter from the repository root:
+
+```bash
+ruff check .
+```
+
+`[tool.ruff]` in `pyproject.toml` scopes this to `carbox/` and `tests/`
+(correctness and import-hygiene rules only -- see the comment there for
+why) and skips `benchmarks/`, `examples/`, `notebooks/`, and
+`sensitivity_analysis/`, which haven't had a lint pass yet.
 
 Run the test suite from the repository root:
 
@@ -26,6 +34,9 @@ python -m pytest tests/test_conservation.py    # one file
 python -m pytest tests/test_reaction_id.py -k umist   # one test
 ```
 
+Both `ruff check .` and `pytest` run in CI on every push and pull request
+(`.github/workflows/ci.yml`); a PR won't merge cleanly until both pass.
+
 To build and preview the documentation site locally:
 
 ```bash
@@ -33,6 +44,11 @@ pip install -e .[docs]
 mkdocs serve   # live preview at http://127.0.0.1:8000
 mkdocs build   # static site in site/
 ```
+
+Docs are deployed automatically to
+[gijsvermarien.github.io/carbox](https://gijsvermarien.github.io/carbox/)
+on every push to `main` that touches `docs/`, `mkdocs.yml`, or `carbox/`
+(`.github/workflows/docs.yml`).
 
 ## Known issues
 

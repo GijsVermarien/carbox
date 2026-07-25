@@ -8,16 +8,15 @@ that same order, rate-output columns silently point at the wrong
 reaction.
 """
 
+import sys
 from pathlib import Path
 
 import pytest
 
 PROJECT_ROOT = Path(__file__).parent.parent
-import sys
-
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from carbox.parsers import parse_chemical_network
+from carbox.parsers import parse_chemical_network  # noqa: E402
 
 
 @pytest.mark.parametrize(

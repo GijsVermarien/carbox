@@ -1,13 +1,11 @@
 from dataclasses import dataclass
-from typing import List, Union, Optional
+from typing import Optional
 
-import jax
 import equinox as eqx
 import jax.numpy as jnp
 import numpy as np
-from . import uclchem_photoreactions
 
-from .index import Idx
+from . import uclchem_photoreactions
 
 REACTION_SKIP_LIST = ["CRPHOT", "CRP", "PHOTON"]
 

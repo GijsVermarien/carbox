@@ -7,7 +7,6 @@ Supports loading from YAML/JSON and programmatic setup.
 
 import json
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Dict, Optional
 
 import jax.numpy as jnp

@@ -5,18 +5,16 @@ Wraps Diffrax solvers with appropriate settings for stiff chemistry ODEs.
 """
 
 from typing import Tuple
-import time
 
 import diffrax as dx
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+import lineax as lx  # Add this import
+import optimistix as optx
 
 from .config import SimulationConfig
 from .network import JNetwork
-
-import lineax as lx  # Add this import
-import optimistix as optx
 
 # Seconds per year
 SPY = 3600.0 * 24 * 365.0
