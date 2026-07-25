@@ -8,6 +8,7 @@ stay constant along the outflow — chemistry conserves nuclei and the
 dilution affects every species identically.
 """
 
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -15,11 +16,9 @@ import pytest
 import yaml
 
 PROJECT_ROOT = Path(__file__).parent.parent
-import sys
-
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from carbox import CSEPhysics, SimulationConfig, run_simulation
+from carbox import CSEPhysics, SimulationConfig, run_simulation  # noqa: E402
 
 SPY = 3600.0 * 24 * 365.0
 

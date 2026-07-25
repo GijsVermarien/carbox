@@ -1,0 +1,3 @@
+# carbox.cooling
+
+::: carbox.cooling

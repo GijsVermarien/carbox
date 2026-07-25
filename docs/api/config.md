@@ -1,0 +1,3 @@
+# carbox.config
+
+::: carbox.config

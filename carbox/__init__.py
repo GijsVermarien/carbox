@@ -16,7 +16,7 @@ Example
 """
 
 from .config import SimulationConfig
-from .main import run_simulation, parse_network, solve
+from .main import parse_network, run_simulation, solve
 from .network import JNetwork, Network
 from .parsers import parse_chemical_network
 from .physics import AbstractPhysics, CSEPhysics, StaticCloudPhysics

@@ -61,4 +61,18 @@ carbox-sim = "carbox.main:main"
 [tool.setuptools.packages.find]
 include = ["carbox"]
 
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+# Only lint the installable package and its tests. benchmarks/, examples/,
+# notebooks/, and sensitivity_analysis/ are auxiliary scripts with their own
+# looser conventions (exploratory imports, `import *`, ...) and haven't had
+# a lint pass yet -- bringing them in line is a separate piece of work.
+extend-exclude = ["benchmarks", "examples", "notebooks", "sensitivity_analysis"]
+
+[tool.ruff.lint]
+# Correctness (pyflakes, the critical pycodestyle rules) and import hygiene
+# only -- not the stylistic/modernization rule families (UP, B, RUF, ...),
+# which would require a much larger, separate cleanup pass.
+select = ["E4", "E7", "E9", "F", "I"]
 

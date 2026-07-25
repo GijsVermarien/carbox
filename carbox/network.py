@@ -5,13 +5,12 @@ from typing import List, Union
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from jax.experimental import sparse
 import numpy as np
+from jax.experimental import sparse
 
 from .index import Idx
 from .reactions import JReactionRateTerm, Reaction
 from .species import Species
-from carbox import species
 
 
 class _ScalarRateTermWrapper(eqx.Module):
@@ -421,9 +420,9 @@ class Network:
 
         # Import special reaction types that should not be vectorized
         from .reactions import (
-            H2PhotoDissReaction,
-            COPhotoDissReaction,
             CIonizationReaction,
+            COPhotoDissReaction,
+            H2PhotoDissReaction,
         )
         from .thermo import ThermoRate
 

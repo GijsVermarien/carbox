@@ -1,10 +1,11 @@
-from typing import Dict, Type, Optional
+import os
+from typing import Dict, Optional, Type
+
+from ..network import Network
 from .base_parser import BaseParser
+from .latent_tgas_parser import LatentTGASParser
 from .uclchem_parser import UCLCHEMParser
 from .umist_parser import UMISTParser
-from .latent_tgas_parser import LatentTGASParser
-from ..network import Network
-import os
 
 
 class UnifiedChemicalParser:
