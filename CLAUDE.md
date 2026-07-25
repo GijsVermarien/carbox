@@ -33,7 +33,7 @@ cd sensitivity_analysis && ./run_cr_sensitivity.sh
 
 There is no configured lint/format command beyond `ruff` being a dev dependency (no `ruff.toml`/`[tool.ruff]` section exists yet — don't assume `ruff check` is wired into CI).
 
-**Known JAX version sensitivity** (see `notes.md`): newer JAX (0.4.30+) has triggered `TracerBoolConversionError` in this codebase. If you hit that, the previously-working pin is `jax[cpu]==0.4.26`, `jaxlib==0.4.26`, `equinox==0.11.4`, `lineax==0.0.4`, `diffrax==0.5.0`.
+**Known JAX version sensitivity** (see CONTRIBUTING.md's "Known issues" section for detail): newer JAX (0.4.30+) has triggered `TracerBoolConversionError` in this codebase. If you hit that, the previously-working pin is `jax[cpu]==0.4.26`, `jaxlib==0.4.26`, `equinox==0.11.4`, `lineax==0.0.4`, `diffrax==0.5.0`.
 
 ## Architecture
 

@@ -1,0 +1,65 @@
+site_name: Carbox
+site_description: JAX-accelerated astrochemical kinetic reaction network simulator
+repo_url: https://github.com/gijsvermarien/carbox
+repo_name: gijsvermarien/carbox
+
+docs_dir: docs
+nav:
+  - Home: index.md
+  - Configuration: configuration.md
+  - Physics models: physics.md
+  - Thermal balance: thermal_balance.md
+  - Output files: outputs.md
+  - API reference:
+      - carbox.config: api/config.md
+      - carbox.network: api/network.md
+      - carbox.thermo: api/thermo.md
+      - carbox.cooling: api/cooling.md
+      - carbox.physics: api/physics.md
+      - carbox.index: api/index.md
+
+theme:
+  name: material
+  logo: assets/logo-mark.svg
+  favicon: assets/favicon.png
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - content.code.copy
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - toc:
+      permalink: true
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+            show_source: true
+            show_root_heading: true
+            merge_init_into_class: true
+            heading_level: 2
