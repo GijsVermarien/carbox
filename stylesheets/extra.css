@@ -1,0 +1,26 @@
+/* Carbox brand palette -- ember / slate / carbon-black, matching the logo
+   (docs/assets/logo.svg). Overrides Material's default indigo theme. */
+
+:root {
+  --md-primary-fg-color: #E8622C;
+  --md-primary-fg-color--light: #F2A65A;
+  --md-primary-fg-color--dark: #A0380E;
+  --md-primary-bg-color: #F5F1E9;
+  --md-primary-bg-color--light: #FFFFFF;
+
+  --md-accent-fg-color: #E8622C;
+  --md-accent-fg-color--transparent: #E8622C1a;
+  --md-accent-bg-color: #F5F1E9;
+  --md-accent-bg-color--light: #FFFFFF;
+}
+
+/* slate (dark) scheme: retune Material's hue-based greys toward our slate
+   (#454E60 / #0B0E14, hue ~220) instead of the default indigo-leaning hue. */
+[data-md-color-scheme="slate"] {
+  --md-hue: 220;
+  --md-default-bg-color: #0B0E14;
+}
+
+.md-typeset a {
+  color: var(--md-accent-fg-color);
+}
