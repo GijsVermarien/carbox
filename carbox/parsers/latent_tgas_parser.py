@@ -3,7 +3,10 @@ from typing import List, Optional
 import pandas as pd
 
 from ..network import Network
-from ..reactions import CRPReaction, FUVReaction, KAReaction
+from ..reactions import CRPReaction, FUVReaction, H2FormReaction, KAReaction
+
+# Gas-to-dust mass ratio entering the H2Form rate (100 * gas2dust * alpha), as in the legacy parser_latent_tgas.py.
+GAS2DUST = 0.01
 from ..species import Species
 from .base_parser import BaseParser
 
@@ -73,7 +76,8 @@ class LatentTGASParser(BaseParser):
             elif reaction_type == "FUV":
                 return FUVReaction(reaction_type, reactants, products, alpha)
             elif reaction_type == "H2Form":
-                return CRPReaction(reaction_type, reactants, products, alpha)
+                # Grain-surface formation, rate 100 * gas2dust * alpha; not a cosmic-ray process.
+                return H2FormReaction(reaction_type, reactants, products, alpha, GAS2DUST)
             elif reaction_type == "KA":
                 return KAReaction(
                     reaction_type, reactants, products, alpha, beta, gamma

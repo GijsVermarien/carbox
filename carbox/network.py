@@ -16,10 +16,16 @@ class JNetwork(eqx.Module):
     reactions: List[JReactionRateTerm]
     reactant_multipliers: jnp.array
     reactions_number: int
+    rate_order: jnp.array  # file index of every entry of the stacked rate vector
 
-    def __init__(self, incidence, reactions, dense=True):
+    def __init__(self, incidence, reactions, dense=True, rate_order=None):
         self.incidence = incidence  # S, R
         self.reactions = reactions  # R
+        # The rate terms in ``reactions`` may be vectorised groups whose stacked output is not in the
+        # column order of ``incidence`` (file order). ``rate_order[k]`` is the column of the k-th
+        # stacked rate; get_rates scatters the rates back into column order.
+        n_reactions = incidence.shape[1]
+        self.rate_order = jnp.arange(n_reactions) if rate_order is None else jnp.asarray(rate_order)
         self.reactant_multipliers = self.get_reactant_multipliers(incidence) # R, 2 (max 2 reactants for now, can be extended if needed)
         self.reactions_number = self.reactant_multipliers.shape[0]
 
@@ -72,12 +78,13 @@ class JNetwork(eqx.Module):
         # for i, reaction in enumerate(self.reactions):
         #     rates = rates.at[i].set(reaction(temperature, cr_rate, fuv_rate))
         # return rates
-        return jnp.hstack(
+        stacked = jnp.hstack(
             [
                 reaction(temperature, cr_rate, fuv_rate, visual_extinction, abundances)
                 for reaction in self.reactions
             ]
         )
+        return jnp.zeros_like(stacked).at[self.rate_order].set(stacked)
 
     @jax.jit
     def multiply_rates_by_abundance(self, rates, abundances):
@@ -296,7 +303,7 @@ class Network:
 
     def get_ode(self):
         # Always reset the jreactions
-        self.jcreations = []
+        self.jreactions = []
 
         # Import special reaction types that should not be vectorized
         from .reactions import (
@@ -316,14 +323,19 @@ class Network:
             reaction_groups = {}
             non_vectorizable_reactions = []
 
-            for reaction in self.reactions:
+            group_indices = {}
+            non_vectorizable_indices = []
+            for index, reaction in enumerate(self.reactions):
                 # Skip vectorization for special photoreactions
                 if isinstance(reaction, non_vectorizable_types):
                     non_vectorizable_reactions.append(reaction)
+                    non_vectorizable_indices.append(index)
                 else:
                     if reaction.reaction_type not in reaction_groups:
                         reaction_groups[reaction.reaction_type] = []
+                        group_indices[reaction.reaction_type] = []
                     reaction_groups[reaction.reaction_type].append(reaction)
+                    group_indices[reaction.reaction_type].append(index)
 
             reaction_classes = {
                 reaction.reaction_type: type(reaction)
@@ -345,6 +357,10 @@ class Network:
             # Add non-vectorizable reactions individually
             for reaction in non_vectorizable_reactions:
                 self.jreactions.append(reaction())
+            # The stacked rate vector is ordered group by group, then the non-vectorised terms;
+            # record the file index of each entry so the rates line up with the incidence columns.
+            rate_order = [i for indices in group_indices.values() for i in indices] + non_vectorizable_indices
         else:
             self.jreactions = [reaction() for reaction in self.reactions]
-        return JNetwork(self.incidence, self.jreactions)
+            rate_order = list(range(len(self.reactions)))
+        return JNetwork(self.incidence, self.jreactions, rate_order=rate_order)
