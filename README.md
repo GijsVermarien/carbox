@@ -32,6 +32,23 @@ pip install -e .[dev]
 pre-commit install
 ```
 
+To integrate many cells at once on a GPU with one thread per cell (the fused
+Rosenbrock23 kernel of `carbox.fused`, generated from the network's JAX
+right-hand side with NVIDIA Warp via [gradsolve](https://github.com/ECLIPSE-AI4Science/gradsolve);
+9-13x faster than the vmapped diffrax solve on an A100 at the same tolerance),
+use the `fused` extra:
+
+```bash
+pip install -e .[fused]
+```
+
+```python
+from carbox.fused import fused_batch_solver, network_rhs
+f = network_rhs(jnet, temperature=30.0, cosmic_ray_rate=3e-17, fuv_field=1e-4, visual_extinction=2.0)
+solve = fused_batch_solver(f, dim=jnet.incidence.shape[0], n_params=1, rtol=1e-6, atol=1e-15)
+y1 = solve(x0, density[:, None], dt)   # x0 [n, species] fractional abundances, density [n] cm^-3, dt [n] s; usable inside jax.jit
+```
+
 To build the API/physics docs (generated from docstrings via `mkdocstrings`,
 see `docs/`), use the `docs` extra:
 
