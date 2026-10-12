@@ -17,7 +17,6 @@ On 65,536 cells of a 16-species H-C-O network with thermochemistry, at rtol 1e-6
 agrees with diffrax Kvaerno5 to 1e-5 dex and is 9-13x faster on an A100. Optional dependencies: ``warp-lang>=1.14``
 and ``gradsolve`` (``pip install carbox[fused]``).
 """
-from __future__ import annotations
 
 import functools
 import numpy as np
@@ -144,6 +143,16 @@ def extend_translator(JF=None):
             return (tuple(operand.shape), out)
         return h
 
+    def _h_bcoo_dot_general(e, iv, p):
+        # sparse (BCOO) incidence matrix x dense rates: data and indices are constants, so the sparse operand is
+        # densified (numbers) and the product unrolled by the dense handler with the same dimension numbers;
+        # jacfwd batches the sparse operand (n_batch = 1), which BCOO.todense() handles
+        from jax.experimental import sparse as jsparse
+        data = _num_arr(iv[0]); idx = _num_arr(iv[1]).astype(np.int32)
+        dense = np.asarray(jsparse.BCOO((jnp.asarray(data), jnp.asarray(idx)), shape=tuple(int(s) for s in p["lhs_spinfo"].shape)).todense())
+        lhs = (tuple(dense.shape), [float(v) for v in dense.reshape(-1)])
+        return _h_dot_general(e, [lhs, iv[2]], {"dimension_numbers": p["dimension_numbers"]})
+
     def _h_reshape(e, iv, p):   # gradsolve's own handler ignores `dimensions` (transpose first); jvp of reduce_prod emits it
         arr = e._as_obj_array(iv[0]); dims = p.get("dimensions")
         if dims is not None: arr = np.transpose(arr, tuple(int(d) for d in dims))
@@ -153,7 +162,7 @@ def extend_translator(JF=None):
     JF._HANDLERS.update({
         "select_n": _h_select_n, "and": _h_logic("and"), "or": _h_logic("or"), "not": _h_not,
         "reduce_sum": _h_reduce("add"), "reduce_prod": _h_reduce("mul"), "reduce_max": _h_reduce("max"), "reduce_min": _h_reduce("min"),
-        "dot_general": _h_dot_general, "gather": _h_gather, "scatter": _h_scatter(), "scatter-add": _h_scatter("add"), "scatter_add": _h_scatter("add"),
+        "dot_general": _h_dot_general, "bcoo_dot_general": _h_bcoo_dot_general, "gather": _h_gather, "scatter": _h_scatter(), "scatter-add": _h_scatter("add"), "scatter_add": _h_scatter("add"),
         "reshape": _h_reshape, "copy": lambda e, iv, p: iv[0], "copy_p": lambda e, iv, p: iv[0], "stop_gradient": lambda e, iv, p: iv[0],
         "exp2": un(lambda c: 2.0 ** c, "wp.pow(%(s)s(2.0), %(a)s)"), "square": un(lambda c: c * c, "(%(a)s * %(a)s)"),
         "rsqrt": un(lambda c: c ** -0.5, "(%(s)s(1.0) / wp.sqrt(%(a)s))"), "log1p": un(np.log1p, "wp.log(%(s)s(1.0) + %(a)s)"), "expm1": un(np.expm1, "(wp.exp(%(a)s) - %(s)s(1.0))"),
@@ -308,6 +317,10 @@ def fused_batch_solver(f, dim, *, n_params=1, rtol=1e-6, atol=1e-15, max_steps=2
             dt = h * wp.clamp(fac, wp.float64(FAC_MIN), wp.float64(FAC_MAX))
         y_out[jt] = y
 
-    fn = wp.jax_kernel(rosenbrock23_cells, num_outputs=1)
+    kernel_fn = wp.jax_kernel(rosenbrock23_cells, num_outputs=1)
+
+    def fn(*args):   # jax_kernel returns a list of outputs; hand back the single array
+        out = kernel_fn(*args)
+        return out[0] if isinstance(out, (list, tuple)) else out
     _CACHE[key] = fn
     return fn
